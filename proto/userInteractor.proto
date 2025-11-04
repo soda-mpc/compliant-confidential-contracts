@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package bubbleProto;
+
+option go_package = "./;bubbleProto";
+
+// Service definition for user-related operations.
+service UserInteractorService {
+    rpc OnboardUser(OnboardUserRequest) returns (OnboardUserResponse);
+    rpc EncryptToUser(EncryptToUserRequest) returns (EncryptToUserResponse);
+    rpc IsNullified(IsNullifiedRequest) returns (IsNullifiedResponse);
+}
+
+message OnboardUserRequest {
+    bytes rsa_public_key = 1;
+    bytes address = 2;
+    bytes user_signature = 3;
+}
+
+message OnboardUserResponse{
+    bytes rsa_ciphertexts = 1;
+    int32 result_code = 2;
+}
+
+message EncryptToUserRequest{
+    bytes handle = 1;
+    int64 chain_id = 2;
+    bytes user_signature = 3;
+}
+
+message EncryptToUserResponse{
+    bytes output = 1;
+    repeated bytes mpc_signatures = 2;
+    int32 result_code = 3;
+}
+
+message IsNullifiedRequest{
+    bytes y_value = 1;
+}
+
+message IsNullifiedResponse {
+    bool response = 1;
+    bytes mpc_signature = 2;
+    int32 result_code = 3;
+}
+
