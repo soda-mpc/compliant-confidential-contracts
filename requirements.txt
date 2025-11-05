@@ -1,1 +1,2 @@
 soda-bubble-sdk==0.0.5
+py-solc-x==1.1.1
