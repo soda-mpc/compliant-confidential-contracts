@@ -22,12 +22,12 @@ jobs:
 
       - name: Onboard user - js
         run: |
-          chmod +x lib/onchain/scripts/js/gen_account.mjs
-          node lib/onchain/scripts/js/gen_account.mjs
+          chmod +x lib/onchain/scripts/js/gen-account.mjs
+          node lib/onchain/scripts/js/gen-account.mjs
           source .env
           python -m lib.onchain.scripts.python.transfer_native_coins ${{ secrets.SECRET_KEY }} Remote
-          chmod +x lib/offchain/js/onboard_user.mjs 
-          node lib/offchain/js/onboard_user.mjs Remote
+          chmod +x lib/offchain/js/onboard-user.mjs 
+          node lib/offchain/js/onboard-user.mjs Remote
         timeout-minutes: 5
         env:
           DISABLE_GAS_ESTIMATION: "true"
