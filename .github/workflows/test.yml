@@ -56,11 +56,11 @@ jobs:
         run: |
           rm .env_user
           chmod +x lib/onchain/scripts/python/gen_account.py
-          python -m lib/onchain/scripts/python/gen_account .env_user
+          python -m lib.onchain.scripts.python.gen_account .env_user
           source .env_user
-          python -m lib/onchain/scripts/python.transfer_native_coins "$REMOTE_FAUCET_ADDRESS" Remote
+          python -m lib.onchain.scripts.python.transfer_native_coins "$REMOTE_FAUCET_ADDRESS" Remote
           chmod +x lib/offchain/onboardUser/python/onboard_user.py
-          python -m lib/offchain/onboardUser/python/onboard_user Remote
+          python -m lib.offchain.onboardUser.python.onboard_user Remote
         timeout-minutes: 5
 
       - name: Run tests
