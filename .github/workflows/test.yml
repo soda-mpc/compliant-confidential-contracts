@@ -10,6 +10,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    env: 
+      REMOTE_RPC_URL: ${{ vars.REMOTE_ETHEREUM_RPC_URL}}
+      REMOTE_CHAIN_ID: ${{ vars.REMOTE_ETHEREUM_CHAIN_ID}}
+      REMOTE_FAUCET_ADDRESS: ${{ secrets.REMOTE_FAUCET_ADDRESS}}
+      USER_INTERACTOR_URL: ${{ vars.USER_INTERACTOR_URL}}:50060
+      PUBLIC_KEYS_PATH: "keys/"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,7 +33,7 @@ jobs:
           chmod +x lib/onchain/scripts/js/gen-account.mjs
           node lib/onchain/scripts/js/gen-account.mjs
           source .env
-          python -m lib.onchain.scripts.python.transfer_native_coins ${{ secrets.SECRET_KEY }} Remote
+          python -m lib.onchain.scripts.python.transfer_native_coins "$REMOTE_FAUCET_ADDRESS" Remote
           chmod +x lib/offchain/js/onboard-user.mjs 
           node lib/offchain/js/onboard-user.mjs Remote
         timeout-minutes: 5
@@ -50,7 +58,7 @@ jobs:
           chmod +x lib/onchain/scripts/python/gen_account.py
           python -m lib/onchain/scripts/python/gen_account
           source .env
-          python -m lib/onchain/scripts/python.transfer_native_coins ${{ secrets.SECRET_KEY }} Remote
+          python -m lib/onchain/scripts/python.transfer_native_coins "$REMOTE_FAUCET_ADDRESS" Remote
           chmod +x lib/offchain/python/onboard_user.py
           python -m lib/offchain/python.onboard_user Remote
         timeout-minutes: 5
