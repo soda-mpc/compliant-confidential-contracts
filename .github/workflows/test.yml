@@ -31,8 +31,8 @@ jobs:
       - name: Onboard user - js
         run: |
           chmod +x lib/onchain/scripts/js/gen-account.mjs
-          node lib/onchain/scripts/js/gen-account.mjs
-          source .env
+          node lib/onchain/scripts/js/gen-account.mjs .env_user
+          source .env_user
           python -m lib.onchain.scripts.python.transfer_native_coins "$REMOTE_FAUCET_ADDRESS" Remote
           chmod +x lib/offchain/onboardUser/js/onboard-user.mjs 
           node lib/offchain/onboardUser/js/onboard-user.mjs Remote
@@ -42,22 +42,22 @@ jobs:
 
       - name: Run js ERC20
         run: |
-          source .env
+          source .env_user
           node examples/scripts/js/run-private-erc20.mjs Remote
         timeout-minutes: 5
 
       - name: Run js ERC20 with EIP 191 signatures
         run: |
-          source .env
+          source .env_user
           node examples/scripts/js/run-private-erc20.mjs --use_eip191_signature=true Remote
         timeout-minutes: 5
 
       - name: Onboard user - python
         run: |
-          rm .env
+          rm .env_user
           chmod +x lib/onchain/scripts/python/gen_account.py
-          python -m lib/onchain/scripts/python/gen_account
-          source .env
+          python -m lib/onchain/scripts/python/gen_account .env_user
+          source .env_user
           python -m lib/onchain/scripts/python.transfer_native_coins "$REMOTE_FAUCET_ADDRESS" Remote
           chmod +x lib/offchain/onboardUser/python/onboard_user.py
           python -m lib/offchain/onboardUser/python/onboard_user Remote
@@ -65,19 +65,19 @@ jobs:
 
       - name: Run tests
         run: |
-          source .env
+          source .env_user
           python -m tests.scripts.python.run_precompile_tests_contract Remote
         timeout-minutes: 15
 
       - name: Run python ERC20 tests
         run: |
-          source .env
+          source .env_user
           python -m examples.scripts.python.run_private_erc20 Remote
         timeout-minutes: 5
 
       - name: Run python ERC20 tests with EIP 191 signatures
         run: |
-          source .env
+          source .env_user
           python -m examples.scripts.python.run_private_erc20 Remote --use_eip191_signature=True
         timeout-minutes: 5
 
