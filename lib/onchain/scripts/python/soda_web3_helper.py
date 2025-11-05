@@ -19,6 +19,10 @@ MAX_SLEEP_TIME = 600
 MAX_GAS_PRICE = 100
 INCREASE_PERCENT = 1.15
 
+MPC_INTERFACE_PATH = "lib/onchain/contracts/MpcInterface.sol";
+MPC_CORE_PATH = "lib/onchain/contracts/MpcCore.sol";
+CONTRACTS_ADDRESS_PATH = "contracts/";
+
 def parse_url_parameter():
     parser = argparse.ArgumentParser(description='Get URL')
     parser.add_argument('provider_url', type=str, help='The provider url')
@@ -54,9 +58,9 @@ class SodaWeb3Helper:
         print('SodaWeb3Helper initialized')
         
     def setup_contract(self, contract_path, contract_id, overwrite=False, 
-                       mpc_inst_path="lib/onchain/contracts/MpcInterface.sol", 
-                       mpc_core_path="lib/onchain/contracts/MpcCore.sol", 
-                       address_path="lib/onchain/contracts/"):
+                       mpc_inst_path=MPC_INTERFACE_PATH, 
+                       mpc_core_path=MPC_CORE_PATH, 
+                       address_path=CONTRACTS_ADDRESS_PATH):
         
         if contract_id in self.contracts and not overwrite:
             raise Exception(f"Contract with id {contract_id} already exists. Use the 'overwrite' parameter to overwrite it.")
@@ -718,9 +722,9 @@ def load_contract(file_path):
         return file.read()
 
 def compile_contract(file_path, 
-                     mpc_inst_path="lib/onchain/contracts/MpcInterface.sol", 
-                     mpc_core_path="lib/onchain/contracts/MpcCore.sol", 
-                     address_path="lib/onchain/contracts/"):
+                     mpc_inst_path=MPC_INTERFACE_PATH, 
+                     mpc_core_path=MPC_CORE_PATH, 
+                     address_path=CONTRACTS_ADDRESS_PATH):
     if SOLC_VERSION not in get_installed_solc_versions():
         install_solc(SOLC_VERSION)
     set_solc_version(SOLC_VERSION)

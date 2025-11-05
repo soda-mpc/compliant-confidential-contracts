@@ -3,7 +3,6 @@ from eth_account import Account
 from lib.onchain.scripts.python.soda_web3_helper import SodaWeb3Helper, DEFAULT_GAS_PRICE, LOCAL_PROVIDER_URL, REMOTE_HTTP_PROVIDER_URL
 import argparse
 from web3.exceptions import TransactionNotFound, ContractLogicError
-from web3 import Web3
 
 MAX_GAS_PRICE = 1000
 INCREASE_PERCENT = 1.15

@@ -1,4 +1,4 @@
-import { prepareIT256, readPublicKeyFromPem} from '../../../lib/soda-sdk/js/crypto.mjs';
+import { prepareIT256, readPublicKeyFromPem} from 'soda-bubble-sdk';
 import {
     SodaWeb3Helper,
     createUserInteractorClient,

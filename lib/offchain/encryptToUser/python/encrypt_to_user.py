@@ -4,11 +4,9 @@ import grpc
 import logging
 
 from web3 import Account
-from core.proto import userInteractor_pb2 as pb
-from core.proto import userInteractor_pb2_grpc as pb_grpc
-import sys
-sys.path.append('lib/soda-sdk')
-from python.soda_python_sdk.crypto import sign, BLOCK_SIZE, verify_signature, decrypt, read_public_key_from_pem
+from proto import userInteractor_pb2 as pb
+from proto import userInteractor_pb2_grpc as pb_grpc
+from soda_python_sdk import sign, BLOCK_SIZE, verify_signature, decrypt, read_public_key_from_pem
 
 NUM_EVALUATORS = 2
 
