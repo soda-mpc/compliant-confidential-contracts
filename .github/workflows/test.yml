@@ -40,17 +40,17 @@ jobs:
         env:
           DISABLE_GAS_ESTIMATION: "true"
 
-      # - name: Run js ERC20
-      #   run: |
-      #     source .env_user
-      #     node examples/scripts/js/run-private-erc20.mjs Remote
-      #   timeout-minutes: 5
+      - name: Run js ERC20
+        run: |
+          source .env_user
+          node examples/scripts/js/run-private-erc20.mjs Remote
+        timeout-minutes: 5
 
-      # - name: Run js ERC20 with EIP 191 signatures
-      #   run: |
-      #     source .env_user
-      #     node examples/scripts/js/run-private-erc20.mjs --use_eip191_signature=true Remote
-      #   timeout-minutes: 5
+      - name: Run js ERC20 with EIP 191 signatures
+        run: |
+          source .env_user
+          node examples/scripts/js/run-private-erc20.mjs --use_eip191_signature=true Remote
+        timeout-minutes: 5
 
       - name: Onboard user - python
         run: |
@@ -69,17 +69,17 @@ jobs:
           python -m tests.scripts.python.run_precompile_tests_contract Remote
         timeout-minutes: 15
 
-      # - name: Run python ERC20 tests
-      #   run: |
-      #     source .env_user
-      #     python -m examples.scripts.python.run_private_erc20 Remote
-      #   timeout-minutes: 5
+      - name: Run python ERC20 tests
+        run: |
+          source .env_user
+          python -m examples.scripts.python.run_private_erc20 Remote
+        timeout-minutes: 5
 
-      # - name: Run python ERC20 tests with EIP 191 signatures
-      #   run: |
-      #     source .env_user
-      #     python -m examples.scripts.python.run_private_erc20 Remote --use_eip191_signature=True
-      #   timeout-minutes: 5
+      - name: Run python ERC20 tests with EIP 191 signatures
+        run: |
+          source .env_user
+          python -m examples.scripts.python.run_private_erc20 Remote --use_eip191_signature=True
+        timeout-minutes: 5
 
       - name: Check Exit Codes
         run: |
