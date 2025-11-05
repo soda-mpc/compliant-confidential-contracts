@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "ethereumjs-util": "^7.1.5",
+    "@grpc/grpc-js": "^1.9.14",
+    "solc": "^0.8.24",
+    "web3": "^4.5.0",
+    "soda-bubble-sdk": "0.0.6"
+  }
+}

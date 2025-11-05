@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {GCExtendedOperationsAddress} from "./GCHandlerAddress.sol";
+import {GCExtendedOperationsAddress} from "GCHandlerAddress.sol";
 
 /// @title  GCACL
 /// @notice The ACL (Access Control List) is a permission management system designed to
@@ -19,7 +19,7 @@ contract GCACL {
     /// @param caller   account calling the permit function.
     /// @param account  account being permitted for the handle.
     /// @param handle   handle being permitted.
-    event Permitted(address indexed caller, address indexed account, uint256 handle);
+    event GCHandlePermitted(address caller, address account, uint256 handle);
 
     /// @notice Mapping of handles to accounts to check if they are permitted.
     mapping(uint256 handle => mapping(address account => bool isPermitted)) persistedPermitted;
@@ -38,7 +38,7 @@ contract GCACL {
             revert SenderNotPermitted(handle, msg.sender);
         }
         persistedPermitted[handle][account] = true;
-        emit Permitted(msg.sender, account, handle);
+        emit GCHandlePermitted(msg.sender, account, handle);
     }
     
     /// @notice              Permits the use of `handle` by address `account` for this transaction.

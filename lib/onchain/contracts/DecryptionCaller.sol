@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "./MpcCore.sol";
+import "MpcCore.sol";
 
 abstract contract DecryptionCaller {
 
@@ -46,12 +46,12 @@ abstract contract DecryptionCaller {
     /// @param decryptID The ID of the decryption
     /// @param handles The handles to save
     function saveDecryptHandles(uint256 decryptID, uint256[] memory handles) internal {
-        require(handles.length > 0, "Handles array cannot be empty");
-
+        require(handles.length > 0, "Handles array cannot be empty");  
+        
         if (decryptHandles[decryptID].length > 0) {
             revert DecryptionIDAlreadyExists(decryptID);
         }
-        decryptHandles[decryptID]= handles;
+        decryptHandles[decryptID]= handles;  
     }
 
     /// @notice Get the handles of the decryption corresponding to the decryptID
