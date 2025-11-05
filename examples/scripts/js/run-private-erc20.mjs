@@ -1,4 +1,5 @@
-import { prepareIT256, readPublicKeyFromPem} from 'soda-bubble-sdk';
+import pkg from 'soda-bubble-sdk';
+const { prepareIT256, readPublicKeyFromPem } = pkg;
 import {
     SodaWeb3Helper,
     createUserInteractorClient,
