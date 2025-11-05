@@ -34,8 +34,8 @@ jobs:
           node lib/onchain/scripts/js/gen-account.mjs
           source .env
           python -m lib.onchain.scripts.python.transfer_native_coins "$REMOTE_FAUCET_ADDRESS" Remote
-          chmod +x lib/offchain/js/onboard-user.mjs 
-          node lib/offchain/js/onboard-user.mjs Remote
+          chmod +x lib/offchain/onboardUser/js/onboard-user.mjs 
+          node lib/offchain/onboardUser/js/onboard-user.mjs Remote
         timeout-minutes: 5
         env:
           DISABLE_GAS_ESTIMATION: "true"
@@ -59,8 +59,8 @@ jobs:
           python -m lib/onchain/scripts/python/gen_account
           source .env
           python -m lib/onchain/scripts/python.transfer_native_coins "$REMOTE_FAUCET_ADDRESS" Remote
-          chmod +x lib/offchain/python/onboard_user.py
-          python -m lib/offchain/python.onboard_user Remote
+          chmod +x lib/offchain/onboardUser/python/onboard_user.py
+          python -m lib/offchain/onboardUser/python/onboard_user Remote
         timeout-minutes: 5
 
       - name: Run tests
