@@ -104,6 +104,7 @@ async function main() {
     if (!receipt){
         throw new Error("Failed to deploy the contract")
     }
+    console.log("Contract deployed at address: ", receipt.contractAddress);
 
     await new Promise(resolve => setTimeout(resolve, 10000));
 
@@ -149,7 +150,12 @@ async function main() {
 
     console.log("************* Transfer IT ", plaintext_integer, " to Alice *************")
     // Prepare the input test for the function
-    let it = prepareIT256(plaintext_integer, user_key, account.address, contract.options.address, Buffer.from(signingKey.slice(2), 'hex'), useEIP191);
+    let it = prepareIT256(
+        plaintext_integer, 
+        user_key, 
+        Buffer.from(account.address.toString().slice(2), 'hex'),
+        Buffer.from(contract.options.address.toString().slice(2), 'hex'),
+        Buffer.from(signingKey.slice(2), 'hex'), useEIP191);
     // Create the real function using the prepared IT
     func = contract.methods.transfer(alice_address.address, it);
     // Transfer 5 SOD to Alice
@@ -174,7 +180,12 @@ async function main() {
 
     console.log("************* Transfer IT ", plaintext_integer, " from my account to Alice *************");
     // Transfer 5 SOD to Alice
-    it = prepareIT256(plaintext_integer, user_key, account.address, contract.options.address, Buffer.from(signingKey.slice(2), 'hex'), useEIP191);
+    it = prepareIT256(
+        plaintext_integer, 
+        user_key, 
+        Buffer.from(account.address.toString().slice(2), 'hex'),
+        Buffer.from(contract.options.address.toString().slice(2), 'hex'),
+        Buffer.from(signingKey.slice(2), 'hex'), useEIP191);
     // Create the real function using the prepared IT output
     func = contract.methods.transferFrom(account.address, alice_address.address, it);
     const tx_hash = await execute_transaction(sodaHelper, func, contract)

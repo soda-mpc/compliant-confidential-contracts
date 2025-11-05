@@ -7,10 +7,9 @@ import sys
 from time import sleep
 import time
 import grpc
-from core.proto import userInteractor_pb2 as pb
-from core.proto import userInteractor_pb2_grpc as pb_grpc
-sys.path.append('lib/soda-sdk')
-from python.soda_python_sdk.crypto import generate_aes_key, write_aes_key, generate_rsa_keypair, recover_user_key, sign, decrypt, prepare_IT, prepare_IT_256
+from proto import userInteractor_pb2 as pb
+from proto import userInteractor_pb2_grpc as pb_grpc
+from soda_python_sdk import generate_aes_key, write_aes_key, generate_rsa_keypair, recover_user_key, sign, decrypt, prepare_IT, prepare_IT_256
 from lib.onchain.scripts.python.soda_web3_helper import SodaWeb3Helper, LOCAL_PROVIDER_URL, REMOTE_HTTP_PROVIDER_URL
 from lib.offchain.onboardUser.python.onboard_user import onboard_user
 from web3.exceptions import TransactionNotFound
