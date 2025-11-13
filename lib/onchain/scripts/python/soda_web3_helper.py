@@ -8,6 +8,8 @@ from web3.exceptions import TransactionNotFound
 from solcx import compile_standard, install_solc, get_installed_solc_versions, set_solc_version
 import argparse
 from time import sleep
+from eth_abi import encode
+from eth_utils import keccak
 
 LOCAL_PROVIDER_URL = 'http://localhost:7001'
 REMOTE_HTTP_PROVIDER_URL = os.environ.get('REMOTE_RPC_URL')
@@ -19,9 +21,9 @@ MAX_SLEEP_TIME = 600
 MAX_GAS_PRICE = 100
 INCREASE_PERCENT = 1.15
 
-MPC_INTERFACE_PATH = "lib/onchain/contracts/MpcInterface.sol";
-MPC_CORE_PATH = "lib/onchain/contracts/MpcCore.sol";
-CONTRACTS_ADDRESS_PATH = "contracts/";
+MPC_INTERFACE_PATH = "lib/onchain/contracts/MpcInterface.sol"
+MPC_CORE_PATH = "lib/onchain/contracts/MpcCore.sol"
+CONTRACTS_ADDRESS_PATH = "contracts/"
 
 def parse_url_parameter():
     parser = argparse.ArgumentParser(description='Get URL')
@@ -60,15 +62,15 @@ class SodaWeb3Helper:
     def setup_contract(self, contract_path, contract_id, overwrite=False, 
                        mpc_inst_path=MPC_INTERFACE_PATH, 
                        mpc_core_path=MPC_CORE_PATH, 
-                       address_path=CONTRACTS_ADDRESS_PATH):
+                       address_path=CONTRACTS_ADDRESS_PATH,
+                       node_modules_path=""):
         
         if contract_id in self.contracts and not overwrite:
             raise Exception(f"Contract with id {contract_id} already exists. Use the 'overwrite' parameter to overwrite it.")
         
         print(f"Contract path: {contract_path}")
-        print(f"Address path: {address_path}")
         try:
-            contract_bytecode, contract_abi = compile_contract(contract_path, mpc_inst_path, mpc_core_path, address_path)
+            contract_bytecode, contract_abi = compile_contract(contract_path, mpc_inst_path, mpc_core_path, address_path, node_modules_path)
         except Exception as e:
             raise Exception(f"Failed to compile the contract: {e}")
         
@@ -109,13 +111,10 @@ class SodaWeb3Helper:
         # Use optimal gas estimation if not provided
         if gas_limit is None:
             gas_limit = self.estimate_optimal_gas_limit(contract_id, constructor_args)
-            print(f"Estimated gas limit: {gas_limit}")
         
         # Use optimal gas price if not provided
         if gas_price is None:
-            print(f"Getting optimal gas price for {contract_id} with priority: {priority}")
             gas_price = self.get_optimal_gas_price(priority)
-            print(f"Optimal gas price: {gas_price} gwei")
 
         func_to_call = self.contracts[contract_id].constructor
         construct_txn = self._build_transaction(func_to_call, gas_limit, gas_price, constructor_args, account, use_eip1559=use_eip1559, priority=priority)
@@ -125,19 +124,8 @@ class SodaWeb3Helper:
                 address=receipt.contractAddress, 
                 abi=self.contracts[contract_id].abi,
                 bytecode=self.contracts[contract_id].bytecode)
-            print(f"Contract deployed successfully. Gas used: {receipt.gasUsed}, Gas price: {gas_price} gwei")
+            print(f"Contract deployed successfully at address: {receipt.contractAddress}. Gas used: {receipt.gasUsed}, Gas price: {gas_price} gwei")
         return receipt
-    
-    def set_contract_address(self, contract_id, contract_address):
-
-        if contract_id not in self.contracts:
-            raise Exception(f"Contract with id {contract_id} does not exist. Use the 'setup_contract' method to set it up.")
-        
-        self.contracts[contract_id] = self.web3.eth.contract(
-                                      address=contract_address, 
-                                      abi=self.contracts[contract_id].abi,
-                                      bytecode=self.contracts[contract_id].bytecode)
-
 
     def deploy_multi_contracts(self, 
                         contracts_id, 
@@ -234,6 +222,229 @@ class SodaWeb3Helper:
                 abi=self.contracts[contract_id].abi,
                 bytecode=self.contracts[contract_id].bytecode)
         return tx_receipts
+
+    def set_contract_address(self, contract_id, contract_address):
+
+        if contract_id not in self.contracts:
+            raise Exception(f"Contract with id {contract_id} does not exist. Use the 'setup_contract' method to set it up.")
+        
+        self.contracts[contract_id] = self.web3.eth.contract(
+                                      address=contract_address, 
+                                      abi=self.contracts[contract_id].abi,
+                                      bytecode=self.contracts[contract_id].bytecode)
+
+
+    def get_contract_address(self, contract_id):
+        if contract_id not in self.contracts:
+            raise Exception(f"Contract with id {contract_id} does not exist. Use the 'setup_contract' method to set it up.")
+        return self.contracts[contract_id].address
+
+    def initialize_proxy(self, 
+                     implementation_contract_id,
+                     proxy_contract_id,
+                     initializer_name='initialize',
+                     initializer_args=[],
+                     gas_limit=None,
+                     gas_price=None,
+                     account=None,
+                     priority='low',
+                     use_eip1559=False):
+        """
+        Deploy a UUPS proxy using OpenZeppelin's pattern and initialize it.
+        
+        This method:
+        1. Deploys an ERC1967Proxy that points to the implementation
+        2. Sets the address of the proxy contract in the SodaWeb3Helper object
+        3. Calls initialize() on the proxy during deployment
+        
+        Args:
+            contract_id: The contract identifier (implementation must be set up first)
+            initializer_name: Name of the initializer function (default: 'initialize')
+            initializer_args: Arguments for the initializer function
+            gas_limit: Gas limit for the transaction
+            gas_price: Gas price in gwei
+            account: Account to deploy from
+            priority: Priority level for gas pricing
+            use_eip1559: Whether to use EIP-1559 gas pricing
+            
+        Returns:
+            Proxy address
+        """
+        if account is None:
+            account = self.account
+        
+        if implementation_contract_id not in self.contracts:
+            raise Exception(f"Contract {implementation_contract_id} not found. Use setup_contract first to set up the implementation.")
+        
+        # Step 1: Compile ERC1967Proxy contract
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # Go up from: bubble/lib/onchain/scripts/python -> bubble/
+            project_root = os.path.abspath(os.path.join(current_dir, '../../../..'))
+            node_modules_path = os.path.join(project_root, 'node_modules')
+            
+            if not os.path.exists(node_modules_path):
+                raise Exception(f"node_modules not found at {node_modules_path}")
+            
+            erc1967_proxy_path = os.path.join(node_modules_path, '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol')
+            if not os.path.exists(erc1967_proxy_path):
+                raise Exception(f"ERC1967Proxy.sol not found at {erc1967_proxy_path}")
+            self.setup_contract(erc1967_proxy_path, proxy_contract_id, overwrite=True, mpc_inst_path="", mpc_core_path="", address_path="", node_modules_path=node_modules_path)
+        except Exception as e:
+            raise Exception(f"Failed to compile ERC1967Proxy: {e}")
+        
+        # Step 2: Encode the initialize function call
+        implementation_contract = self.contracts[implementation_contract_id]
+        if not hasattr(implementation_contract.functions, initializer_name):
+            raise Exception(f"Initializer function '{initializer_name}' not found in contract {implementation_contract_id}")
+        
+        try:
+            init_func = getattr(implementation_contract.functions, initializer_name)
+            call_data = init_func(*initializer_args).encodeABI()
+        except Exception as e:
+            # Fallback: manually encode
+            func_abi = None
+            for item in implementation_contract.abi:
+                if item.get('type') == 'function' and item.get('name') == initializer_name:
+                    func_abi = item
+                    break
+            
+            if func_abi is None:
+                raise Exception(f"Could not find {initializer_name} in ABI")
+            
+            input_types = [inp['type'] for inp in func_abi['inputs']]
+            func_sig = f"{initializer_name}({','.join(input_types)})"
+            selector = keccak(text=func_sig)[:4]
+            
+            if initializer_args:
+                encoded_args = encode(input_types, initializer_args)
+            else:
+                encoded_args = b''
+            
+            call_data = selector + encoded_args
+        
+        # Convert call_data to bytes if needed
+        if isinstance(call_data, str):
+            if call_data.startswith('0x'):
+                call_data = bytes.fromhex(call_data[2:])
+            else:
+                call_data = bytes.fromhex(call_data)
+        elif not isinstance(call_data, bytes):
+            call_data = bytes(call_data)
+        
+        # Step 3: Deploy ERC1967Proxy with implementation address and call_data
+        proxy_contract = self.contracts[proxy_contract_id]
+        # ERC1967Proxy constructor: constructor(address implementation, bytes memory _data)
+        constructor_args = [self.get_contract_address(implementation_contract_id), call_data]
+        
+        # Estimate gas
+        if gas_limit is None:
+            try:
+                construct_txn = proxy_contract.constructor(*constructor_args).build_transaction({
+                    'from': account.address,
+                    'nonce': self.web3.eth.get_transaction_count(account.address),
+                })
+                gas_limit = self.web3.eth.estimate_gas(construct_txn)
+            except Exception as e:
+                print(f"Gas estimation failed: {e}, using default")
+                gas_limit = DEFAULT_GAS_LIMIT
+        
+        if gas_price is None:
+            gas_price = self.get_optimal_gas_price(priority)
+        
+        # Build and send transaction
+        construct_txn = self._build_transaction(
+            proxy_contract.constructor,
+            gas_limit,
+            gas_price,
+            constructor_args,
+            account,
+            use_eip1559=use_eip1559,
+            priority=priority
+        )
+        
+        proxy_receipt = self._sign_and_send_transaction(construct_txn, account)
+        
+        if proxy_receipt is None or proxy_receipt.status != 1:
+            raise Exception(f"Failed to deploy proxy. Receipt: {proxy_receipt}")
+        
+        proxy_address = proxy_receipt.contractAddress
+        
+        # Step 5: Set up the proxy contract instance with implementation ABI
+        self.contracts[proxy_contract_id] = self.web3.eth.contract(
+            address=proxy_address,
+            abi=implementation_contract.abi,
+            bytecode=implementation_contract.bytecode
+        )
+        
+        print(f"Proxy deployment complete. Proxy address: {proxy_address}, Implementation: {implementation_contract_id}")
+        return proxy_address
+    
+    def upgrade_proxy(self, contract_id, new_implementation_address, gas_limit=None, gas_price=None, account=None, priority='low', use_eip1559=False):
+
+        if account is None:
+            account = self.account
+
+        if contract_id not in self.contracts:
+            raise Exception(f"Contract with id {contract_id} does not exist. Use the 'setup_contract' method to set it up.")
+
+        # Check if contract has an address set
+        proxy_contract = self.contracts[contract_id]
+        if not hasattr(proxy_contract, 'address') or proxy_contract.address is None:
+            raise Exception(f"Contract {contract_id} does not have an address set. Make sure the proxy was deployed and the address is set.")
+
+        # Get the upgrade function
+        try:
+            func_to_call = getattr(proxy_contract.functions, 'upgradeToAndCall')
+            # upgradeToAndCall(address newImplementation, bytes memory data)
+            # Pass empty bytes for data to match upgradeTo behavior
+            upgrade_args = [new_implementation_address, b'']
+        except AttributeError:
+            # Check the ABI directly to see what functions are available
+            abi = proxy_contract.abi
+            available_functions = [item.get('name') for item in abi if item.get('type') == 'function']
+            raise Exception(
+                f"Contract {contract_id} ABI does not include 'upgradeTo' or 'upgradeToAndCall' function. "
+                f"The proxy contract must have the UUPSUpgradeable interface. "
+                f"Available functions: {available_functions}. "
+                f"Make sure the proxy contract (EmptyUUPSProxy) was set up correctly with its ABI. "
+                f"The proxy should be deployed with EmptyUUPSProxy.sol which inherits from UUPSUpgradeable."
+            )
+
+        # Use optimal gas estimation if not provided
+        if gas_limit is None:
+            try:
+                # Estimate gas directly using the function object
+                estimated_gas = func_to_call(*upgrade_args).estimate_gas({'from': account.address})
+                gas_limit = int(estimated_gas * 1.1)  # Add 10% buffer for safety
+            except Exception as e:
+                print(f"Failed to estimate gas: {e}, using default")
+                gas_limit = DEFAULT_GAS_LIMIT
+        
+        # Use optimal gas price if not provided
+        if gas_price is None:
+            gas_price = self.get_optimal_gas_price(priority)
+
+        construct_txn = self._build_transaction(func_to_call, gas_limit, gas_price, upgrade_args, account, use_eip1559=use_eip1559, priority=priority)
+        receipt = self._sign_and_send_transaction(construct_txn, account)
+        if receipt is not None and receipt.status == 1:
+            # Get the implementation contract ABI and bytecode
+            implementation_id = contract_id + "Implementation"
+            if implementation_id not in self.contracts:
+                raise Exception(f"Implementation contract '{implementation_id}' not found. Make sure to deploy the implementation contract first using setup_contract.")
+            
+            # Update the proxy contract instance with the new implementation's ABI
+            # The proxy address stays the same, but the ABI reflects the new implementation
+            self.contracts[contract_id] = self.web3.eth.contract(
+                address=self.contracts[contract_id].address,
+                abi=self.contracts[implementation_id].abi,
+                bytecode=self.contracts[implementation_id].bytecode)
+            print(f"Proxy upgraded successfully. Gas used: {receipt.gasUsed}, Gas price: {gas_price} gwei")
+        else:
+            print(f"Receipt: {receipt}")
+            raise Exception(f"Failed to upgrade proxy.")
+        return receipt
+    
     
     def call_contract_view(self, contract_id, func_name, func_args=[]):
         if contract_id not in self.contracts:
@@ -276,7 +487,6 @@ class SodaWeb3Helper:
             else:
                 raise Exception(f"Timeout waiting for nonce confirmation after {timeout} seconds")
         else:
-            print("No pending transactions")
             return True
     
     def estimate_gas(self, 
@@ -323,18 +533,13 @@ class SodaWeb3Helper:
             try:
                 estimated_gas = self.estimate_gas(contract_id, func_name, func_args, account)
                 gas_limit = int(estimated_gas * 1.1)  # Add 10% buffer for safety
-                print(f"Estimated gas limit for {func_name}: {gas_limit}")
             except Exception as e:
                 print(f"Failed to estimate gas: {e}, using default")
                 gas_limit = DEFAULT_GAS_LIMIT
         
         # Use optimal gas price if not provided
         if gas_price is None:
-            print(f"Getting optimal gas price for {func_name} with priority: {priority}")
             gas_price = self.get_optimal_gas_price(priority)
-            print(f"Optimal gas price for {func_name}: {gas_price} gwei")
-        
-        print(f"Chain ID: {self.chain_id}")
         
         func_to_call = getattr(self.contracts[contract_id].functions, func_name)
         transaction = self._build_transaction(func_to_call, gas_limit, gas_price, func_args, account, use_eip1559=use_eip1559, priority=priority)
@@ -724,7 +929,8 @@ def load_contract(file_path):
 def compile_contract(file_path, 
                      mpc_inst_path=MPC_INTERFACE_PATH, 
                      mpc_core_path=MPC_CORE_PATH, 
-                     address_path=CONTRACTS_ADDRESS_PATH):
+                     address_path=CONTRACTS_ADDRESS_PATH,
+                     node_modules_path=""):
     if SOLC_VERSION not in get_installed_solc_versions():
         install_solc(SOLC_VERSION)
     set_solc_version(SOLC_VERSION)
@@ -748,11 +954,11 @@ def compile_contract(file_path,
         sources["GCACLAddress.sol"] = {"urls": [address_path + "GCACLAddress.sol"]}
 
     # Get the absolute path to node_modules in the bubble directory
-    node_modules_path = os.path.abspath(os.path.join(os.path.dirname(file_path), "../../node_modules"))
-
-    # Check if node_modules directory exists  
-    if not os.path.exists(node_modules_path):  
-        raise FileNotFoundError(f"node_modules directory not found at {node_modules_path}. Run 'npm install' first.")  
+    if node_modules_path == "":
+        node_modules_path = os.path.abspath(os.path.join(os.path.dirname(file_path), "../../node_modules"))
+        # Check if node_modules directory exists  
+        if not os.path.exists(node_modules_path):  
+            raise FileNotFoundError(f"node_modules directory not found at {node_modules_path}. Run 'npm install' first.")  
     
     # Add remappings for OpenZeppelin imports
     remappings = [

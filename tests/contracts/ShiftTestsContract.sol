@@ -106,9 +106,7 @@ contract ShiftTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkShlResults.selector); 
     } 
 
-    function checkShlResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkShlResults: Invalid callback parameters");
-        
+    function checkShlResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         result8 = abi.decode(output[0], (uint8));
         result16 = abi.decode(output[1], (uint16));
         result32 = abi.decode(output[2], (uint32));
@@ -137,9 +135,7 @@ contract ShiftTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkShrResults.selector); 
     } 
 
-    function checkShrResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkShrResults: Invalid callback parameters");
-        
+    function checkShrResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         uint8 firstResult = abi.decode(output[0], (uint8));
         for (uint256 i = 1; i < output.length; i++) {
             uint8 result = abi.decode(output[i], (uint8));

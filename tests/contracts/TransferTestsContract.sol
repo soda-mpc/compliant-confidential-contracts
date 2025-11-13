@@ -594,9 +594,7 @@ contract TransferTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkTransferResults.selector); 
     }
 
-    function checkTransferResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkTransferResults: Invalid callback parameters");
-        
+    function checkTransferResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         uint8 firstNewA = abi.decode(output[0], (uint8));
         uint8 firstNewB = abi.decode(output[1], (uint8));
         bool firstRes = abi.decode(output[2], (bool));

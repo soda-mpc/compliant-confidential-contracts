@@ -272,9 +272,7 @@ contract CheckedWithOverflowFuncsTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkAddResults.selector);
     }
 
-    function checkAddResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkAddResults: Invalid callback parameters");
-        
+    function checkAddResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         bool firstOverflowBit = abi.decode(output[0], (bool));
         uint8 firstResult = abi.decode(output[1], (uint8));
         for (uint256 i = 2; i < output.length; i+=2) {
@@ -330,9 +328,7 @@ contract CheckedWithOverflowFuncsTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkAddOverflowResults.selector);
     }
 
-    function checkAddOverflowResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkAddOverflowResults: Invalid callback parameters");
-        
+    function checkAddOverflowResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         bool firstOverflowBit = abi.decode(output[0], (bool));  
         for (uint256 i = 1; i < output.length; i++) {
             bool overflowBit = abi.decode(output[i], (bool));
@@ -516,9 +512,7 @@ contract CheckedWithOverflowFuncsTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkSubResults.selector);
     }
 
-    function checkSubResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkSubResults: Invalid callback parameters");
-        
+    function checkSubResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         bool firstOverflowBit = abi.decode(output[0], (bool));
         uint8 firstResult = abi.decode(output[1], (uint8));
         for (uint256 i = 2; i < output.length; i+=2) {
@@ -580,9 +574,7 @@ contract CheckedWithOverflowFuncsTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkSubOverflowResults.selector);
     }
 
-    function checkSubOverflowResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkSubOverflowResults: Invalid callback parameters");
-        
+    function checkSubOverflowResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         bool firstOverflowBit = abi.decode(output[0], (bool));
         uint8 firstResult = abi.decode(output[1], (uint8));
         for (uint256 i = 2; i < output.length; i+=2) {

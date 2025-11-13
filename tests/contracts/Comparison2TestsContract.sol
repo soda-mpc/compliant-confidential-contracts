@@ -135,9 +135,7 @@ contract Comparison2TestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkEqResults.selector);
     }
 
-    function checkEqResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkEqResults: Invalid callback parameters");
-
+    function checkEqResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         bool firstResult = abi.decode(output[0], (bool));
         for (uint256 i = 1; i < output.length; i++) {
             bool result = abi.decode(output[i], (bool));
@@ -220,9 +218,7 @@ contract Comparison2TestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkNeResults.selector);
     }
 
-    function checkNeResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkNeResults: Invalid callback parameters");
-
+    function checkNeResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         bool firstResult = abi.decode(output[0], (bool));
         for (uint256 i = 1; i < output.length; i++) {
             bool result = abi.decode(output[i], (bool));

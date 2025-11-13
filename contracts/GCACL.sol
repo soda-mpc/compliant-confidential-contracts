@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {GCExtendedOperationsAddress} from "GCHandlerAddress.sol";
+import {GCHandlerAddress} from "GCHandlerAddress.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title  GCACL
 /// @notice The ACL (Access Control List) is a permission management system designed to
 ///         control who can access, compute on, or decrypt encrypted values in the bubble network.
 ///         By defining and enforcing these permissions, the ACL ensures that encrypted data remains secure while still being usable
 ///         within authorized contexts.
-contract GCACL {
+/// @dev      This contract is deployed using an UUPS proxy.
+contract GCACL is UUPSUpgradeable, Ownable2StepUpgradeable{
    
     /// @notice         Returned if the sender address is not permitted for permit operations.
     /// @param handle   Handle.
@@ -21,12 +24,17 @@ contract GCACL {
     /// @param handle   handle being permitted.
     event GCHandlePermitted(address caller, address account, uint256 handle);
 
-    /// @notice Mapping of handles to accounts to check if they are permitted.
-    mapping(uint256 handle => mapping(address account => bool isPermitted)) persistedPermitted;
-    
+    /// @custom:storage-location erc7201:bubble.storage.GCACL
+    struct GCACLStorage {
+        mapping(uint256 handle => mapping(address account => bool isPermitted)) persistedPermitted;
+    }
 
+    /// keccak256(abi.encode(uint256(keccak256("bubble.storage.GCACL")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant GCACLStorageLocation = 0x85523aed7f74ec200b6de6cb9cced0a0ae2b17a83a0ffa6cd0d648212e559500;
+    
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
+        _disableInitializers();
     }
     
     /// @notice              Permits the use of `handle` for the address `account`.
@@ -37,7 +45,9 @@ contract GCACL {
         if (!isPermitted(handle, msg.sender)) {
             revert SenderNotPermitted(handle, msg.sender);
         }
-        persistedPermitted[handle][account] = true;
+
+        GCACLStorage storage $ = _getGCACLStorage();
+        $.persistedPermitted[handle][account] = true;
         emit GCHandlePermitted(msg.sender, account, handle);
     }
     
@@ -48,7 +58,7 @@ contract GCACL {
     /// @param handle        Handle.
     /// @param account       Address of the account.
     function permitTransient(uint256 handle, address account) public virtual {
-        if (msg.sender != GCExtendedOperationsAddress) {
+        if (msg.sender != GCHandlerAddress) {
             if (!isPermitted(handle, msg.sender)) {
                 revert SenderNotPermitted(handle, msg.sender);
             }
@@ -63,7 +73,7 @@ contract GCACL {
     /// @notice                  Getter function for the GCHandler contract address.
     /// @return GCHandlerAddress Address of the GCHandler.
     function getGCHandlerAddress() public view virtual returns (address) {
-        return GCExtendedOperationsAddress;
+        return GCHandlerAddress;
     }
 
     /// @notice              Returns true if the address account is permitted to use handle, otherwise, returns false.
@@ -71,7 +81,8 @@ contract GCACL {
     /// @param account       Address of the account.
     /// @return isPermitted    Whether the account can access the handle.
     function isPermittedPersistent(uint256 handle, address account) public view virtual returns (bool) {
-        return persistedPermitted[handle][account];
+        GCACLStorage storage $ = _getGCACLStorage();
+        return $.persistedPermitted[handle][account];
     }
 
     /// @notice                      Checks whether the account is permitted to use the handle in the
@@ -96,4 +107,18 @@ contract GCACL {
     function isPermitted(uint256 handle, address account) public view virtual returns (bool) {
         return isPermittedTransient(handle, account) || isPermittedPersistent(handle, account);
     }
+
+    /**
+     * @dev                  Returns the ACL storage location.
+     */
+    function _getGCACLStorage() internal pure returns (GCACLStorage storage $) {
+        assembly {
+            $.slot := GCACLStorageLocation
+        }
+    }
+
+    /**
+     * @dev Should revert when `msg.sender` is not authorized to upgrade the contract.
+     */
+    function _authorizeUpgrade(address _newImplementation) internal virtual override onlyOwner {}
 }

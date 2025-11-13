@@ -2,19 +2,17 @@
 pragma solidity ^0.8.24;
 
 import "MpcInterface.sol";
-import "../../lib/onchain/contracts/GCACLAddress.sol";
+import {GCACLAddress} from "GCACLAddress.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-
-struct CounterStorage {
-    uint256 counter; // tracks the number of decryption requests, and used to compute the requestID by hashing it with the dApp address
-}
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title    GCHandler
 /// @notice   This contract emits events for all GC operations.
 /// @dev      This contract is deployed using an UUPS proxy.
-contract GCHandler {
-
-    uint16[7] MPC_SIZES = [1, 8, 16, 32, 64, 128, 256];
+contract GCHandler is UUPSUpgradeable, Ownable2StepUpgradeable{
+    
+    uint256 constant MPC_SIZES_LENGTH = 7;
     enum METADATA_INDICES {ZERO, ONE, TWO, THREE, FOUR}
     enum InputTypes {BOTH_SECRET, LHS_PUBLIC, RHS_PUBLIC}
 
@@ -27,9 +25,20 @@ contract GCHandler {
     uint16 constant SUINT256_T = 256;
 
     string constant MESSAGE_PREFIX = "Ethereum Signed Message:\n";
-    CounterStorage internal decryptionOracleStorage;    
-    CounterStorage internal randStorage;
-    CounterStorage internal oprfStorage;
+
+    /// @custom:storage-location erc7201:bubble.storage.GCHandler
+    struct GCCounterStorage {
+        uint256 counter; // tracks the number of decryption requests, and used to compute the requestID by hashing it with the dApp address
+    }
+
+    /// keccak256(abi.encode(uint256(keccak256("bubble.storage.GCHandlerDecryptionStorageLocation")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant GCHandlerDecryptionStorageLocation = 0xd440951dcf626c3463253e61fb3d166b15c59bf4deaf2fe3001afee4b00bce00;
+
+    /// keccak256(abi.encode(uint256(keccak256("bubble.storage.GCHandlerRandStorageLocation")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant GCHandlerRandStorageLocation = 0xdbeaee257380a3f0b8afb068c92c56a0ac9ad7bd42758fcf50b0034902ee3e00;
+
+    /// keccak256(abi.encode(uint256(keccak256("bubble.storage.GCHandlerOprfStorageLocation")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant GCHandlerOprfStorageLocation = 0xd8f5e17ab37a053a554cebc4310f5ddd7d02997caa29c1f83b5caf58673d7800;
 
     GCACL constant acl = GCACL(address(GCACLAddress));
 
@@ -74,13 +83,21 @@ contract GCHandler {
     
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
+        _disableInitializers();
     }
 
-    function getSize(bytes1 size) internal view returns (uint16) {
+    function getSize(bytes1 size) internal pure returns (uint16) {
         // simple bounds check
         uint256 idx = uint8(size);
-        require(idx < MPC_SIZES.length, "Invalid size");
-        return MPC_SIZES[idx];
+        require(idx < MPC_SIZES_LENGTH, "Invalid size index");
+        if (idx == 0) return 1;
+        if (idx == 1) return 8;
+        if (idx == 2) return 16;
+        if (idx == 3) return 32;
+        if (idx == 4) return 64;
+        if (idx == 5) return 128;
+        if (idx == 6) return 256;
+        revert("Invalid size index");
     }
 
     function checkPublicParameter(uint256 param, uint16 bitSize) internal view returns (bool) {
@@ -716,8 +733,9 @@ contract GCHandler {
             if (!checkACL(handles[i])) revert ACLNotPermitted(handles[i], msg.sender);
         }
 
-        emit GCDecryptionRequest(decryptionOracleStorage.counter, decryptID, handles, msg.sender, callbackSelector);
-        decryptionOracleStorage.counter++;
+        GCCounterStorage storage $ = _getGCHandlerDecryptionStorage();
+        emit GCDecryptionRequest($.counter, decryptID, handles, msg.sender, callbackSelector);
+        $.counter++;
     }
 
     function verifySignature(bytes memory message, bytes calldata signature) internal {
@@ -809,13 +827,14 @@ contract GCHandler {
         if (!validateBitSize(bitSize)) revert InvalidParameter(bitSize);
 
         // The randStorage.counter is used to avoid collisions in the result handles
+        GCCounterStorage storage $ = _getGCHandlerRandStorage();
         // when there are multiple calls to the Rand function.
-        result = uint256(keccak256(abi.encodePacked("Rand", randStorage.counter, metadata)));
+        result = uint256(keccak256(abi.encodePacked("Rand", $.counter, metadata)));
         // Permit the calling contract to access the result handle
         acl.permitTransient(result, msg.sender);
 
         emit GCRand(bitSize, result);
-        randStorage.counter++;
+        $.counter++;
     }
 
     /// @notice              Computes RandBoundedBits operation.
@@ -828,15 +847,15 @@ contract GCHandler {
         if (!validateBitSize(bitSize)) revert InvalidParameter(bitSize);
         if (numBits > bitSize) revert InvalidParameter(numBits);
 
-
         // The randStorage.counter is used to avoid collisions in the result handles
+        GCCounterStorage storage $ = _getGCHandlerRandStorage();
         // when there are multiple calls to the Rand function.
-        result = uint256(keccak256(abi.encodePacked("RandBoundedBits", randStorage.counter, numBits, metadata)));
+        result = uint256(keccak256(abi.encodePacked("RandBoundedBits", $.counter, numBits, metadata)));
         // Permit the calling contract to access the result handle
         acl.permitTransient(result, msg.sender);
 
         emit GCUnaryOperation("RAND", bitSize, numBits, result);
-        randStorage.counter++;
+        $.counter++;
     }
 
     /// @notice              Computes OprfMint operation.
@@ -851,15 +870,16 @@ contract GCHandler {
     /// @return y            Y value of the token.
     function OprfMint(uint256 key, uint256 q) public virtual returns (uint256 x, uint256 y){
         
-        x = uint256(keccak256(abi.encodePacked("OprfMintX", oprfStorage.counter, key, q)));
-        y = uint256(keccak256(abi.encodePacked("OprfMintY", oprfStorage.counter, key, q)));
+        GCCounterStorage storage $ = _getGCHandlerOprfStorage();
+        x = uint256(keccak256(abi.encodePacked("OprfMintX", $.counter, key, q)));
+        y = uint256(keccak256(abi.encodePacked("OprfMintY", $.counter, key, q)));
         // Permit the calling contract to access the result handle
         acl.permitTransient(x, msg.sender);
         acl.permitTransient(y, msg.sender);
 
         emit GCOprfMint(key, q, x, y);
 
-        oprfStorage.counter++;
+        $.counter++;
     }
 
     /// @notice              Computes OprfBurn operation.
@@ -870,13 +890,14 @@ contract GCHandler {
     /// @param y             Y value of the token.
     /// @return qBurned      Result handle of Q value of the burned token.
     function OprfBurn(uint256 key, uint256 x, uint256 q, uint256 y) public virtual returns (uint256 qBurned){
-        qBurned = uint256(keccak256(abi.encodePacked("OprfBurnQBurned", oprfStorage.counter, key, x, q, y)));
+        GCCounterStorage storage $ = _getGCHandlerOprfStorage();
+        qBurned = uint256(keccak256(abi.encodePacked("OprfBurnQBurned", $.counter, key, x, q, y)));
         
         acl.permitTransient(qBurned, msg.sender);
         
         emit GCOprfBurn(key, x, q, y, qBurned);
         
-        oprfStorage.counter++;
+        $.counter++;
     }
 
     /// @notice              Computes OprfSplit operation.
@@ -893,12 +914,13 @@ contract GCHandler {
     /// @return qPay         Result handle of Q value of the pay token. Qpay should be qSplit if all validations are successful, otherwise it should be equal to 0.
     /// @return yPay         Result handle of Y value of the pay token.
     function OprfSplit(uint256 key, uint256 x, uint256 q, uint256 y, uint256 qSplit) public virtual returns (uint256 xrRemainder, uint256 qRemainder, uint256 yRemainder, uint256 xrPay, uint256 qPay, uint256 yPay){
-        xrRemainder = uint256(keccak256(abi.encodePacked("OprfSplitXrRemainder", oprfStorage.counter, key, x, q, y, qSplit)));
-        qRemainder = uint256(keccak256(abi.encodePacked("OprfSplitQRemainder", oprfStorage.counter, key, x, q, y, qSplit)));
-        yRemainder = uint256(keccak256(abi.encodePacked("OprfSplitYRemainder", oprfStorage.counter, key, x, q, y, qSplit)));
-        xrPay = uint256(keccak256(abi.encodePacked("OprfSplitXrPay", oprfStorage.counter, key, x, q, y, qSplit)));
-        qPay = uint256(keccak256(abi.encodePacked("OprfSplitQPay", oprfStorage.counter, key, x, q, y, qSplit)));
-        yPay = uint256(keccak256(abi.encodePacked("OprfSplitYPay", oprfStorage.counter, key, x, q, y, qSplit)));
+        GCCounterStorage storage $ = _getGCHandlerOprfStorage();
+        xrRemainder = uint256(keccak256(abi.encodePacked("OprfSplitXrRemainder", $.counter, key, x, q, y, qSplit)));
+        qRemainder = uint256(keccak256(abi.encodePacked("OprfSplitQRemainder", $.counter, key, x, q, y, qSplit)));
+        yRemainder = uint256(keccak256(abi.encodePacked("OprfSplitYRemainder", $.counter, key, x, q, y, qSplit)));
+        xrPay = uint256(keccak256(abi.encodePacked("OprfSplitXrPay", $.counter, key, x, q, y, qSplit)));
+        qPay = uint256(keccak256(abi.encodePacked("OprfSplitQPay", $.counter, key, x, q, y, qSplit)));
+        yPay = uint256(keccak256(abi.encodePacked("OprfSplitYPay", $.counter, key, x, q, y, qSplit)));
 
         acl.permitTransient(xrRemainder, msg.sender);
         acl.permitTransient(qRemainder, msg.sender);
@@ -909,7 +931,7 @@ contract GCHandler {
 
         emit GCOprfSplit(key, x, q, y, qSplit, xrRemainder, qRemainder, yRemainder, xrPay, qPay, yPay);
 
-        oprfStorage.counter++;
+        $.counter++;
     }
 
     /// @notice              Computes OprfMerge operation.
@@ -925,9 +947,11 @@ contract GCHandler {
     /// @return qMerged      Result handle of Q value of the merged token. Qmerged should be qRemainder + qPay if all validations are successful.
     /// @return yMerged      Result handle of Y value of the merged token.
     function OprfMerge(uint256 key, uint256 x1, uint256 q1, uint256 y1, uint256 x2, uint256 q2, uint256 y2) public virtual returns (uint256 xr, uint256 qMerged, uint256 yMerged){
-        xr = uint256(keccak256(abi.encodePacked("OprfMergeXr", oprfStorage.counter, key, x1, q1, y1, x2, q2, y2)));
-        qMerged = uint256(keccak256(abi.encodePacked("OprfMergeQMerged", oprfStorage.counter, key, x1, q1, y1, x2, q2, y2)));
-        yMerged = uint256(keccak256(abi.encodePacked("OprfMergeYMerged", oprfStorage.counter, key, x1, q1, y1, x2, q2, y2)));
+        
+        GCCounterStorage storage $ = _getGCHandlerOprfStorage();
+        xr = uint256(keccak256(abi.encodePacked("OprfMergeXr", $.counter, key, x1, q1, y1, x2, q2, y2)));
+        qMerged = uint256(keccak256(abi.encodePacked("OprfMergeQMerged", $.counter, key, x1, q1, y1, x2, q2, y2)));
+        yMerged = uint256(keccak256(abi.encodePacked("OprfMergeYMerged", $.counter, key, x1, q1, y1, x2, q2, y2)));
 
         acl.permitTransient(xr, msg.sender);
         acl.permitTransient(qMerged, msg.sender);
@@ -935,7 +959,39 @@ contract GCHandler {
 
         emit GCOprfMerge(key, x1, q1, y1, x2, q2, y2, xr, qMerged, yMerged);
 
-        oprfStorage.counter++;
+        $.counter++;
     }
+
+    /**
+     * @dev Returns the GCHandlerDecryptionStorage storage location.
+     */
+    function _getGCHandlerDecryptionStorage() internal pure returns (GCCounterStorage storage $) {
+        assembly {
+            $.slot := GCHandlerDecryptionStorageLocation
+        }
+    }
+
+    /**
+     * @dev Returns the GCHandlerRandStorage storage location.
+     */
+    function _getGCHandlerRandStorage() internal pure returns (GCCounterStorage storage $) {
+        assembly {
+            $.slot := GCHandlerRandStorageLocation
+        }
+    }
+
+    /**
+     * @dev Returns the GCHandlerOprfStorage storage location.
+     */
+    function _getGCHandlerOprfStorage() internal pure returns (GCCounterStorage storage $) {
+        assembly {
+            $.slot := GCHandlerOprfStorageLocation
+        }
+    }
+
+    /**
+     * @dev Should revert when `msg.sender` is not authorized to upgrade the contract.
+     */
+    function _authorizeUpgrade(address _newImplementation) internal virtual override onlyOwner {}
         
 }

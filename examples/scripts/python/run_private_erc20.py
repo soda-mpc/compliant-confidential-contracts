@@ -1,14 +1,16 @@
 import os
 from eth_account import Account
-from soda_python_sdk import prepare_IT_256, read_public_key_from_pem
+from soda_python_sdk import prepare_IT_256
 from lib.onchain.scripts.python.soda_web3_helper import SodaWeb3Helper, LOCAL_PROVIDER_URL, REMOTE_HTTP_PROVIDER_URL
 from web3.exceptions import TransactionNotFound
 from time import sleep
 import logging
 import argparse
 import grpc
+from proto import userInteractor_pb2 as pb
 from proto import userInteractor_pb2_grpc as pb_grpc
-from lib.offchain.encryptToUser.python.encrypt_to_user import get_encrypted_value, decrypt_value
+from lib.offchain.encryptToUser.python.encrypt_to_user import get_encrypted_values, decrypt_value
+from lib.onchain.scripts.python.get_signers import get_signers_addresses
 
 FILE_NAME = 'PrivateERC20Contract.sol'
 FILE_PATH = 'examples/contracts/'
@@ -21,32 +23,12 @@ def execute_transaction(soda_helper, account, contract, function):
     NONCE += 1
     return tx_hash
 
-def check_balance(client, contract, account, user_key, expected_balance, chain_id, public_keys):
+def check_value(name, user_key, encrypted_value, expected_value):
     try:
-        # Get the handle of the balance
-        handle = contract.functions.balanceOf().call({'from': account.address})
-        print("Balance handle:", handle.to_bytes(32, byteorder='big'))
-
-        # Ask the user interactor for the encrypted balance, decrypt it and check if it matches the expected value
-        my_CTBalance = get_encrypted_value(client, handle, account, chain_id, public_keys)
-        my_balance = decrypt_value(my_CTBalance, user_key)
-        check_expected_result("balanceOf", expected_balance, my_balance)
+        my_balance = decrypt_value(encrypted_value, user_key)
+        check_expected_result(name, expected_value, my_balance)
     except Exception as e:
-        print(f"Error checking balance: {e}")
-        raise
-
-def check_allowance(client, contract, account, user_key, expected_allowance, chain_id, public_keys):
-    try:
-        # Get the handle of the allowance
-        handle = contract.functions.allowance(account.address, account.address).call()
-        print("Allowance handle:", handle)
-        
-    # Ask the user interactor for the encrypted allowance, decrypt it and check if it matches the expected value
-        my_CTAllowance = get_encrypted_value(client, handle, account, chain_id, public_keys)
-        allowance = decrypt_value(my_CTAllowance, user_key)
-        check_expected_result('allowance', expected_allowance, allowance)
-    except Exception as e:
-        print(f"Error checking allowance: {e}")
+        print(f"Error checking {name}: {e}")
         raise
 
 def check_expected_result(name, expected_result, result):
@@ -61,6 +43,8 @@ def main(provider_url: str, use_eip191_signature: bool):
     account = Account.from_key(private_key)
 
     chain_id = os.environ.get('REMOTE_CHAIN_ID')
+
+    signers = get_signers_addresses()
 
     soda_helper = SodaWeb3Helper(private_key, provider_url, chain_id=int(chain_id))
 
@@ -166,19 +150,22 @@ def main(provider_url: str, use_eip191_signature: bool):
 
     sleep(30)
 
-    public_keys_path = os.environ.get('PUBLIC_KEYS_PATH')
+    # Get the handles to encrypt (balance and allowance)
+    balance_handle = contract.functions.balanceOf().call({'from': account.address})
+    allowance_handle = contract.functions.allowance(account.address, account.address).call()
 
-    public_keys = []
-    public_keys.append(read_public_key_from_pem(public_keys_path + "evaluator0PublicKey.pem"))
-    public_keys.append(read_public_key_from_pem(public_keys_path + "evaluator1PublicKey.pem"))
+    print("Balance handle:", balance_handle)
+    print("Allowance handle:", allowance_handle)
 
+    # Ask the user interactor for the encrypted balance
+    encrypted_values = get_encrypted_values(client, [balance_handle, allowance_handle], account, chain_id, signers)
 
     print("************* Check my balance *************")
-    check_balance(client, contract, account, user_key, INITIAL_BALANCE - 4*plaintext_integer, chain_id, public_keys)
+    check_value("balance", user_key, encrypted_values[0], INITIAL_BALANCE - 4*plaintext_integer)
 
     print("************* Check my allowance *************")
     # Check that the allowance has changed to 50 SOD
-    check_allowance(client, contract, account, user_key, plaintext_integer*8, chain_id, public_keys)
+    check_value("allowance", user_key, encrypted_values[1], plaintext_integer*8)
 
 
 if __name__ == "__main__":

@@ -176,18 +176,18 @@ def check_offboard_result(soda_helper, signing_key, grpc_client, user_key, expec
 
     # Call the gRPC service to get the encrypted balance of this handle
     request = pb.EncryptToUserRequest(
-		handle=handle_bytes,
+		handles=[handle_bytes],
         chain_id=int(chain_id),
         user_signature=signature
 	)
     response = grpc_client.EncryptToUser(request)
     
-    logging.info(f"EncryptToUser returned {len(response.output)} bytes")
+    logging.info(f"EncryptToUser returned {len(response.outputs[0])} bytes")
     
-    if len(response.output) != AES_CIPHERTEXT_SIZE*2:
-        raise ValueError(f"Invalid response size: {len(response.output)}")
+    if len(response.outputs[0]) != AES_CIPHERTEXT_SIZE*2:
+        raise ValueError(f"Invalid response size: {len(response.outputs[0])}")
 
-    checkCt(response.output, user_key, expected_result)
+    checkCt(response.outputs[0], user_key, expected_result)
 
 # Test functions
 def test_addition(soda_helper, contract, a, b):

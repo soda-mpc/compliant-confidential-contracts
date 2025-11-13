@@ -1,4 +1,4 @@
-import { prepareIT256, readPublicKeyFromPem} from 'soda-bubble-sdk';
+import { prepareIT256} from 'soda-bubble-sdk';
 import {
     SodaWeb3Helper,
     createUserInteractorClient,
@@ -7,7 +7,8 @@ import {
 } from '../../../lib/onchain/scripts/js/soda-web3-helper.mjs';
 import yargs from "yargs";
 import {hideBin} from "yargs/helpers";
-import { getEncryptedValue, decryptValue} from '../../../lib/offchain/encryptToUser/js/encrypt-to-user.mjs';
+import { getEncryptedValues, decryptValue} from '../../../lib/offchain/encryptToUser/js/encrypt-to-user.mjs';
+import { getSignersAddresses } from '../../../lib/onchain/scripts/js/get_signers.mjs';
 
 const FILE_NAME = 'PrivateERC20Contract.sol';
 const FILE_PATH = 'examples/contracts/';
@@ -28,25 +29,9 @@ async function execute_transaction(sodaHelper, func){
     return tx_hash;
 }
 
-async function checkBalance(client, contract, account, user_key, expectedBalance, chain_id, public_keys){
-    // Get the handle of the balance
-    const handle = await contract.methods.balanceOf().call({'from': account.address});
-    console.log(`Balance handle: ${handle}`);
-
-    // Get my encrypted balance, decrypt it and check if it is equal to the expected balance
-    const my_CTBalance = await getEncryptedValue(client, handle, Buffer.from(account.privateKey.slice(2), 'hex'), chain_id, public_keys)
-    const my_balance = decryptValue(my_CTBalance, user_key);
-    checkExpectedResult('balanceOf', expectedBalance, my_balance);
-}
-
-async function checkAllowance(client, contract, account, user_key, expectedAllowance, chain_id, public_keys){
-    // Get my encrypted allowance, decrypt it and check if it is equal to the expected allowance
-    const handle = await contract.methods.allowance(account.address, account.address).call({'from': account.address});
-    console.log(`Allowance handle: ${handle}`);
-
-    const my_CTAllowance = await getEncryptedValue(client, handle, Buffer.from(account.privateKey.slice(2), 'hex'), chain_id, public_keys)
-    const my_allowance = decryptValue(my_CTAllowance, user_key);
-    checkExpectedResult('allowance', expectedAllowance, my_allowance);
+function checkValue(name, user_key, encrypted_value, expected_value){
+    const my_value = decryptValue(encrypted_value, user_key);
+    checkExpectedResult(name, expected_value, my_value);
 }
 
 async function main() {
@@ -90,6 +75,9 @@ async function main() {
         throw new Error("REMOTE_CHAIN_ID environment variable not set");
     }
     console.log(`Chain ID: ${chain_id}`);
+
+    const signers = await getSignersAddresses();
+
     // Create helper function using the private key
     const sodaHelper = new SodaWeb3Helper(signingKey, providerURL, chain_id);
 
@@ -104,7 +92,6 @@ async function main() {
     if (!receipt){
         throw new Error("Failed to deploy the contract")
     }
-    console.log("Contract deployed at address: ", receipt.contractAddress);
 
     await new Promise(resolve => setTimeout(resolve, 10000));
 
@@ -192,24 +179,23 @@ async function main() {
 
     await sodaHelper.waitForTransactionReceipt(tx_hash);
 
-    const PUBLIC_KEYS_PATH = process.env.PUBLIC_KEYS_PATH;
-    if (!PUBLIC_KEYS_PATH){
-        throw new Error("PUBLIC_KEYS_PATH environment variable not set");
-    }
-    
-    const public_keys = [];
-    public_keys.push(readPublicKeyFromPem(PUBLIC_KEYS_PATH + "evaluator0PublicKey.pem"));
-    public_keys.push(readPublicKeyFromPem(PUBLIC_KEYS_PATH + "evaluator1PublicKey.pem"));
-    
     // Wait 30 seconds
     await new Promise(resolve => setTimeout(resolve, 30000));
 
+    // Get the handles of the balance and allowance
+    const balance_handle = await contract.methods.balanceOf().call({'from': account.address});
+    console.log(`Balance handle: ${balance_handle}`);
+    const allowance_handle = await contract.methods.allowance(account.address, account.address).call({'from': account.address});
+    console.log(`Allowance handle: ${allowance_handle}`);
+    
+    // Get the encrypted balance and allowance
+    const encrypted_values = await getEncryptedValues(client, [balance_handle, allowance_handle], Buffer.from(account.privateKey.slice(2), 'hex'), chain_id, signers);
+
     console.log("************* Check my balance *************")
-    await checkBalance(client, contract, account, user_key, INITIAL_BALANCE - 4*plaintext_integer, chain_id, public_keys);
+    checkValue('balance', user_key, encrypted_values[0], INITIAL_BALANCE - 4*plaintext_integer);
     
     console.log("************* Check my allowance *************")
-    // Check the remainning allowance
-    await checkAllowance(client, contract, account, user_key, plaintext_integer*8, chain_id, public_keys);
+    checkValue('allowance', user_key, encrypted_values[1], plaintext_integer*8);
 }
 
 main()

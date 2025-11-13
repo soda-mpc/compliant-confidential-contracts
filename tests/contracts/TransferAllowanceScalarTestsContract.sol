@@ -409,9 +409,7 @@ contract TransferAllowanceScalarTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkTransferWithAllowanceResults.selector); 
     }
 
-    function checkTransferWithAllowanceResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkTransferWithAllowanceResults: Invalid callback parameters");
-        
+    function checkTransferWithAllowanceResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         uint8 firstNewA = abi.decode(output[0], (uint8));
         uint8 firstNewB = abi.decode(output[1], (uint8));
         bool firstRes = abi.decode(output[2], (bool));
