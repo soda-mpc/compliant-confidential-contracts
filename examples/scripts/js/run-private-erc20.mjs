@@ -1,4 +1,4 @@
-import { prepareIT256} from '../../../lib/soda-sdk/js/crypto.mjs';
+import { prepareIT256} from 'soda-bubble-sdk';
 import {
     SodaWeb3Helper,
     createUserInteractorClient,

@@ -2,16 +2,15 @@ import os
 import time
 from eth_account import Account
 import sys
-sys.path.append('lib/soda-sdk')
-from python.soda_python_sdk.crypto import prepare_IT_256
+from soda_python_sdk import prepare_IT_256
 from lib.onchain.scripts.python.soda_web3_helper import SodaWeb3Helper, LOCAL_PROVIDER_URL, REMOTE_HTTP_PROVIDER_URL
 from web3.exceptions import TransactionNotFound
 from time import sleep
 import logging
 import argparse
 import grpc
-from core.proto import userInteractor_pb2 as pb
-from core.proto import userInteractor_pb2_grpc as pb_grpc
+from proto import userInteractor_pb2 as pb
+from proto import userInteractor_pb2_grpc as pb_grpc
 from lib.offchain.encryptToUser.python.encrypt_to_user import get_encrypted_values, get_encrypted_values_on_behalf, decrypt_value
 from lib.onchain.scripts.python.get_signers import get_signers_addresses, extract_address_from_sol_file
 from lib.onchain.scripts.python.transfer_native_coins import transfer_to_account

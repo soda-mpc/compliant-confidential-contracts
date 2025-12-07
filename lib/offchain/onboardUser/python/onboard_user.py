@@ -5,9 +5,7 @@ from eth_utils import to_bytes
 import logging
 from proto import userInteractor_pb2 as pb
 from proto import userInteractor_pb2_grpc as pb_grpc
-import sys
-sys.path.append('lib/soda-sdk')
-from python.soda_python_sdk.crypto import generate_rsa_keypair, decrypt_rsa, sign_eip191, verify_signatures
+from soda_python_sdk import generate_rsa_keypair, decrypt_rsa, sign_eip191, verify_signatures
 from lib.onchain.scripts.python.get_signers import get_signers_addresses
 
 RSA_CIPHERTEXT_SIZE = 256  # 2048-bit RSA key size in bytes

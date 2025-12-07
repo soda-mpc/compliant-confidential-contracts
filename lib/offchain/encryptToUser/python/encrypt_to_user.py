@@ -5,11 +5,9 @@ import logging
 
 from web3 import Account
 from eth_utils import to_bytes
-from core.proto import userInteractor_pb2 as pb
-from core.proto import userInteractor_pb2_grpc as pb_grpc
-import sys
-sys.path.append('lib/soda-sdk')
-from python.soda_python_sdk.crypto import sign, BLOCK_SIZE, verify_signatures, decrypt
+from proto import userInteractor_pb2 as pb
+from proto import userInteractor_pb2_grpc as pb_grpc
+from soda_python_sdk import sign, BLOCK_SIZE, verify_signatures, decrypt
 from lib.onchain.scripts.python.get_signers import get_signers_addresses
 
 NUM_EVALUATORS = 2
