@@ -974,7 +974,7 @@ def compile_contract(file_path,
 
     # Get the absolute path to node_modules in the bubble directory
     if node_modules_path == "":
-        node_modules_path = os.path.abspath(os.path.join(os.path.dirname(file_path), "../../node_modules"))
+        node_modules_path = os.path.abspath(os.path.join(os.path.dirname(file_path), "../node_modules"))
         # Check if node_modules directory exists  
         if not os.path.exists(node_modules_path):  
             raise FileNotFoundError(f"node_modules directory not found at {node_modules_path}. Run 'npm install' first.")  
