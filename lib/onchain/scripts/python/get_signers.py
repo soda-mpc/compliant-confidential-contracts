@@ -31,7 +31,7 @@ def extract_address_from_sol_file(file_path):
 def get_signers_from_contract(soda_helper, contract_address):
     """Get signers from the GCDecryptionVerifier contract."""
     # Setup the contract (compile to get ABI)
-    contract_path = "core/contracts/GCDecryptionVerifier.sol"
+    contract_path = "contracts/GCDecryptionVerifier.sol"
     success = soda_helper.setup_contract(
         contract_path, 
         "decryption_verifier",
@@ -84,7 +84,7 @@ def get_signers_addresses():
     chain_name = chain_name.upper()
     
     # Get address file path 
-    address_file_chain = f"lib/onchain/contracts/{chain_name}/GCDecryptionVerifierAddress.sol"
+    address_file_chain = f"contracts/{chain_name}/GCDecryptionVerifierAddress.sol"
     contract_address = None
     if os.path.exists(address_file_chain):
         contract_address = extract_address_from_sol_file(address_file_chain)

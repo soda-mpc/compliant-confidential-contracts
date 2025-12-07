@@ -37,12 +37,12 @@ function checkValue(name, user_key, encrypted_value, expected_value){
 }
 
 async function setupACLContract(sodaHelper){
-    const success = await sodaHelper.setupContract("core/contracts/", "GCACL.sol", "acl", false, undefined, "");
+    const success = await sodaHelper.setupContract("contracts/", "GCACL.sol", "acl", false, undefined, "");
     if (!success){
         throw new Error("Failed to set up the ACL contract")
     }
 
-    const address_file_chain = "lib/onchain/contracts/GCACLAddress.sol"
+    const address_file_chain = "contracts/GCACLAddress.sol"
     let acl_address = null;
     if (fs.existsSync(address_file_chain)){
         acl_address = extractAddressFromSolFile(address_file_chain);

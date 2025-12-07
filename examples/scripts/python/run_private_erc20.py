@@ -42,12 +42,12 @@ def check_expected_result(name, expected_result, result):
 
 def setup_acl_contract(soda_helper):
     print(f"Compiling GCACL contract")
-    success = soda_helper.setup_contract("core/contracts/GCACL.sol", "acl", mpc_core_path="")
+    success = soda_helper.setup_contract("contracts/GCACL.sol", "acl", mpc_core_path="")
     if not success:
         raise Exception("Failed to set up the ACL contract")
 
     # Get address file path 
-    address_file_chain = f"lib/onchain/contracts/GCACLAddress.sol"
+    address_file_chain = f"contracts/GCACLAddress.sol"
     acl_address = None
     if os.path.exists(address_file_chain):
         acl_address = extract_address_from_sol_file(address_file_chain)
