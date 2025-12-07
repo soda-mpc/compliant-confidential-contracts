@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import "MpcCore.sol";
-import "GCDecryptionVerifierAddress.sol";
+import "../../../contracts/GCDecryptionVerifierAddress.sol";
 
 interface GCDecryptionVerifier {
     function verifyDecryptionSignatures(
