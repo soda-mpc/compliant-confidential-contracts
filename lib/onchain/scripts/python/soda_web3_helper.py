@@ -21,8 +21,8 @@ MAX_SLEEP_TIME = 600
 MAX_GAS_PRICE = 100
 INCREASE_PERCENT = 1.15
 
-MPC_INTERFACE_PATH = "lib/onchain/contracts/MpcInterface.sol"
-MPC_CORE_PATH = "lib/onchain/contracts/MpcCore.sol"
+MPC_INTERFACE_PATH = "contracts/MpcInterface.sol"
+MPC_CORE_PATH = "contracts/MpcCore.sol"
 CONTRACTS_ADDRESS_PATH = "contracts/"
 
 def parse_url_parameter():
