@@ -1,3 +1,3 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-address constant GCExtendedOperationsAddress = 0xFFaf4f21655529Fe81c3A21156387512F6A885c4;
+address constant GCHandlerAddress = 0xA3D2f729A3d24B7c8eEb28004ff7441Da457a0d6;
