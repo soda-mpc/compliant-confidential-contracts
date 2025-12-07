@@ -28,33 +28,33 @@ jobs:
           pip install -r requirements.txt
           npm install
 
-      # - name: Onboard user - js
-      #   run: |
-      #     chmod +x lib/onchain/scripts/js/gen-account.mjs
-      #     node lib/onchain/scripts/js/gen-account.mjs .env_user
-      #     source .env_user
-      #     python -m lib.onchain.scripts.python.transfer_native_coins "$REMOTE_FAUCET_ADDRESS" Remote
-      #     chmod +x lib/offchain/onboardUser/js/onboard-user.mjs 
-      #     node lib/offchain/onboardUser/js/onboard-user.mjs Remote
-      #   timeout-minutes: 5
-      #   env:
-      #     DISABLE_GAS_ESTIMATION: "true"
+      - name: Onboard user - js
+        run: |
+          chmod +x lib/onchain/scripts/js/gen-account.mjs
+          node lib/onchain/scripts/js/gen-account.mjs .env_user
+          source .env_user
+          python -m lib.onchain.scripts.python.transfer_native_coins "$REMOTE_FAUCET_ADDRESS" Remote
+          chmod +x lib/offchain/onboardUser/js/onboard-user.mjs 
+          node lib/offchain/onboardUser/js/onboard-user.mjs Remote
+        timeout-minutes: 5
+        env:
+          DISABLE_GAS_ESTIMATION: "true"
 
-      # - name: Run js ERC20
-      #   run: |
-      #     source .env_user
-      #     node examples/scripts/js/run-private-erc20.mjs Remote
-      #   timeout-minutes: 5
+      - name: Run js ERC20
+        run: |
+          source .env_user
+          node examples/scripts/js/run-private-erc20.mjs Remote
+        timeout-minutes: 5
 
-      # - name: Run js ERC20 with EIP 191 signatures
-      #   run: |
-      #     source .env_user
-      #     node examples/scripts/js/run-private-erc20.mjs --use_eip191_signature=true Remote
-      #   timeout-minutes: 5
+      - name: Run js ERC20 with EIP 191 signatures
+        run: |
+          source .env_user
+          node examples/scripts/js/run-private-erc20.mjs --use_eip191_signature=true Remote
+        timeout-minutes: 5
 
       - name: Onboard user - python
         run: |
-          # rm .env_user
+          rm .env_user
           chmod +x lib/onchain/scripts/python/gen_account.py
           python -m lib.onchain.scripts.python.gen_account .env_user
           source .env_user
