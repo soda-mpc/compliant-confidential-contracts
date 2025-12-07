@@ -45,20 +45,13 @@ contract GCDecryptionVerifier is UUPSUpgradeable, Ownable2StepUpgradeable {
         address[] signers; /// @notice Array to keep track of all signers
     }
 
-    /// keccak256(abi.encode(uint256(keccak256("bubble.storage.GCVerifierStorageLocation")) - 1)) & ~bytes32(uint256(0xff))
+    /// The storage location of the GCVerifierStorage struct.
+    /// Calculated using the formula: keccak256(abi.encode(uint256(keccak256("bubble.storage.GCVerifierStorageLocation")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant GCVerifierStorageLocation = 0xd4d8f795341f1aa5ae6d9c26ff003eec59d02cbce97f028cfb5ccc38ca5f2200;
     
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
-    }
-
-    /**
-     * @notice              Initializes the contract with an owner.
-     * @param initialOwner  Initial owner address.
-     */
-    function initialize(address initialOwner) public initializer {
-        __Ownable_init(initialOwner);
     }
 
     /**
@@ -269,9 +262,8 @@ contract GCDecryptionVerifier is UUPSUpgradeable, Ownable2StepUpgradeable {
      * @dev Returns the GCVerifierStorage storage location.
      */
     function _getGCVerifierStorage() internal pure returns (VerifierStorage storage $) {
-        bytes32 location = GCVerifierStorageLocation;
         assembly {
-            $.slot := location
+            $.slot := GCVerifierStorageLocation
         }
     }
 

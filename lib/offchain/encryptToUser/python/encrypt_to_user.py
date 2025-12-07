@@ -4,9 +4,12 @@ import grpc
 import logging
 
 from web3 import Account
-from proto import userInteractor_pb2 as pb
-from proto import userInteractor_pb2_grpc as pb_grpc
-from soda_python_sdk import sign, BLOCK_SIZE, verify_signatures, decrypt
+from eth_utils import to_bytes
+from core.proto import userInteractor_pb2 as pb
+from core.proto import userInteractor_pb2_grpc as pb_grpc
+import sys
+sys.path.append('lib/soda-sdk')
+from python.soda_python_sdk.crypto import sign, BLOCK_SIZE, verify_signatures, decrypt
 from lib.onchain.scripts.python.get_signers import get_signers_addresses
 
 NUM_EVALUATORS = 2
@@ -14,15 +17,7 @@ NUM_EVALUATORS = 2
 def get_encrypted_values(client, handles_to_encrypt, account, chain_id, signers):
     
     # Concatenate the handles to encrypt into a single bytes array
-    handles_bytes = []
-    handles_bytes_to_sign = bytes()
-    for handle in handles_to_encrypt:
-        if (isinstance(handle, int)):
-            handle_bytes = handle.to_bytes(32, byteorder='big')
-        else:
-            handle_bytes = handle
-        handles_bytes.append(handle_bytes)
-        handles_bytes_to_sign += handle_bytes
+    handles_bytes, handles_bytes_to_sign = concat_handles(handles_to_encrypt)
 
     # Sign the handles
     signature = sign(handles_bytes_to_sign, account.key)
@@ -33,6 +28,40 @@ def get_encrypted_values(client, handles_to_encrypt, account, chain_id, signers)
         chain_id=int(chain_id),
         user_signature=signature
 	)
+
+    return call_encrypt_to_user(client, request, handles_bytes, handles_to_encrypt, signers)
+
+def get_encrypted_values_on_behalf(client, handles_to_encrypt, owner, account, chain_id, signers):
+    
+    # Concatenate the handles to encrypt into a single bytes array
+    handles_bytes, handles_bytes_to_sign = concat_handles(handles_to_encrypt)
+
+    # Handle Account objects
+    if hasattr(owner, 'address'):
+        owner_bytes = to_bytes(hexstr=owner.address)
+    elif isinstance(owner, str):
+        owner_bytes = to_bytes(hexstr=owner)
+    elif isinstance(owner, bytes):
+        owner_bytes = owner
+    else:
+        raise TypeError(f"Owner must be an Account object with 'address' attribute, or a string/bytes. Got: {type(owner)}")
+
+    message_to_verify = handles_bytes_to_sign + owner_bytes
+
+    # Sign the handles
+    signature = sign(message_to_verify, account.key)
+
+    # Call the gRPC service to get the encrypted balance of this handle
+    request = pb.EncryptToUserRequest(
+		handles=handles_bytes,
+        chain_id=int(chain_id),
+        owner=owner_bytes,
+        user_signature=signature
+	)
+
+    return call_encrypt_to_user(client, request, handles_bytes, handles_to_encrypt, signers)
+
+def call_encrypt_to_user(client, request, handles_bytes, handles_to_encrypt, signers):
     response = client.EncryptToUser(request)
     
     logging.info(f"EncryptToUser returned {len(response.outputs)} bytes")
@@ -54,6 +83,19 @@ def get_encrypted_values(client, handles_to_encrypt, account, chain_id, signers)
         raise ValueError(f"Invalid signatures: {response.mpc_signatures}")
 
     return response.outputs 
+
+def concat_handles(handles_to_encrypt):
+    handles_bytes = []
+    handles_bytes_to_sign = bytes()
+    for handle in handles_to_encrypt:
+        if (isinstance(handle, int)):
+            handle_bytes = handle.to_bytes(32, byteorder='big')
+        else:
+            handle_bytes = handle
+        handles_bytes.append(handle_bytes)
+        handles_bytes_to_sign += handle_bytes
+
+    return handles_bytes, handles_bytes_to_sign
 
 def validate_signatures(signatures, handles_bytes, outputs_bytes, signers):
     # Validate that the number of handles and outputs is the same and not empty

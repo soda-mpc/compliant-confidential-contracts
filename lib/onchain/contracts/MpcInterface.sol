@@ -31,20 +31,36 @@ interface GCExtendedOperations {
     function Not(bytes1 metaData, uint256 a) external returns (uint256 result);
     function Transfer(bytes4 metaData, uint256 from, uint256 to, uint256 amount) external returns (uint256 new_from, uint256 new_to, uint256 res);
     function TransferWithAllowance(bytes5 metaData, uint256 from, uint256 to, uint256 amount, uint256 allowance) external returns (uint256 new_from, uint256 new_to, uint256 res, uint256 new_allowance);
-    function ValidateCiphertext(bytes1 metaData, uint256 ciphertext, bytes calldata signature) external returns (uint256 result);
-    function ValidateCiphertext(bytes1 metaData, uint256 ciphertextHigh, uint256 ciphertextLow, bytes calldata signature) external returns (uint256 result);
+    function ValidateCiphertext(bytes1 metaData, address userAddress, uint256 ciphertext) external returns (uint256 result);
+    function ValidateCiphertext(bytes1 metaData, address userAddress, uint256 ciphertextHigh, uint256 ciphertextLow) external returns (uint256 result);
     function RequestDecryption(uint256 decryptID, uint256[] calldata handles, bytes4 callbackSelector) external;
     function OprfMint(uint256 key, uint256 q) external returns (uint256 x, uint256 y);
     function OprfBurn(uint256 key, uint256 x, uint256 q, uint256 y) external returns (uint256 qBurned);
-    function OprfSplit(uint256 key, uint256 x, uint256 q, uint256 y, uint256 qSplit) external returns (uint256 xrRemainder, uint256 qRemainder, uint256 yRemainder, uint256 xrPay, uint256 qPay, uint256 yPay);
-    function OprfMerge(uint256 key, uint256 xrRemainder, uint256 qRemainder, uint256 yRemainder, uint256 xrPay, uint256 qPay, uint256 yPay) external returns (uint256 xr, uint256 qMerged, uint256 yMerged);        
 }
 
 interface GCACL {
+
     function permit(uint256 handle, address account) external;
     function permitTransient(uint256 handle, address account) external;
     function isPermitted(uint256 handle, address account) external view returns (bool);
     function isPermittedTransient(uint256 handle, address account) external view returns (bool);
     function isPermittedPersistent(uint256 handle, address account) external view returns (bool);
+
+    /// View permissions
+    function permitFullViewAccess(address permittee, uint64 expirationDate) external;
+    function permitContractViewAccess(address permittee, address contractAddress, uint64 expirationDate) external;
+    function revokeFullViewPermission(address permittee) external;
+    function revokeContractViewPermission(address permittee, address contractAddress) external;
+    function isFullViewPermitted(address permitter, address permittee) external view returns (bool);
+    function isContractViewPermitted(address permitter, address permittee, address contractAddress) external view returns (bool);
+    function isPermittedToView(address permitter, address permittee, uint256 handle) external view returns (bool);
+
+    /// Insert permissions
+    function permitFullInsertAccess(address permittee, uint64 expirationDate) external;
+    function permitContractInsertAccess(address permittee, address contractAddress, uint64 expirationDate) external;
+    function revokeFullInsertPermission(address permittee) external;
+    function revokeContractInsertPermission(address permittee, address contractAddress) external;
+    function isFullInsertPermitted(address permitter, address permittee) external view returns (bool);
+    function isContractInsertPermitted(address permitter, address permittee, address contractAddress) external view returns (bool);
 }
 

@@ -426,27 +426,27 @@ contract Miscellaneous1TestsContract is DecryptionCaller {
     // When invoking this test function, all ciphertexts share the same value but are 
     // cast to four different types: ctUint8, ctUint16, ctUint32, and ctUint64. 
     // Consequently, there is a single signature covering all these ciphertexts.
-    function validateCiphertextTest(ctUint8 ct8, ctUint16 ct16, ctUint32 ct32, ctUint64 ct64, ctUint128 ct128, bytes calldata signature) public returns (uint256){
+    function validateCiphertextTest(ctUint8 ct8, ctUint16 ct16, ctUint32 ct32, ctUint64 ct64, ctUint128 ct128, address userAddress) public returns (uint256){
         // Create ITs from ciphertext and signature
         itUint8 memory it8;
         it8.ciphertext = ct8;
-        it8.signature = signature;
+        it8.userAddress = userAddress;
 
         itUint16 memory it16;
         it16.ciphertext = ct16;
-        it16.signature = signature;
+        it16.userAddress = userAddress;
 
         itUint32 memory it32;
         it32.ciphertext = ct32;
-        it32.signature = signature;
+        it32.userAddress = userAddress;
 
         itUint64 memory it64;
         it64.ciphertext = ct64;
-        it64.signature = signature;
+        it64.userAddress = userAddress;
 
         itUint128 memory it128;
         it128.ciphertext = ct128;
-        it128.signature = signature;
+        it128.userAddress = userAddress;
 
         // Compute all operations and put the result handles in an array
         uint256[] memory arrToDecrypt = new uint256[](5);
@@ -474,27 +474,27 @@ contract Miscellaneous1TestsContract is DecryptionCaller {
     // When invoking this test function, all ciphertexts share the same value but are 
     // cast to four different types: ctUint8, ctUint16, ctUint32, and ctUint64. 
     // Consequently, there is a single signature covering all these ciphertexts.
-    function validateCiphertextEip191Test(ctUint8 ct8, ctUint16 ct16, ctUint32 ct32, ctUint64 ct64, ctUint128 ct128, bytes calldata signature) public returns (uint256){
+    function validateCiphertextEip191Test(ctUint8 ct8, ctUint16 ct16, ctUint32 ct32, ctUint64 ct64, ctUint128 ct128, address userAddress) public returns (uint256){
         // Create ITs from ciphertext and signature
         itUint8 memory it8;
         it8.ciphertext = ct8;
-        it8.signature = signature;
+        it8.userAddress = userAddress;
 
         itUint16 memory it16;
         it16.ciphertext = ct16;
-        it16.signature = signature;
+        it16.userAddress = userAddress;
 
         itUint32 memory it32;
         it32.ciphertext = ct32;
-        it32.signature = signature;
+        it32.userAddress = userAddress;
 
         itUint64 memory it64;
         it64.ciphertext = ct64;
-        it64.signature = signature;
+        it64.userAddress = userAddress;
 
         itUint128 memory it128;
         it128.ciphertext = ct128;
-        it128.signature = signature;
+        it128.userAddress = userAddress;
 
         // Compute all operations and put the result handles in an array
         uint256[] memory arrToDecrypt = new uint256[](5);

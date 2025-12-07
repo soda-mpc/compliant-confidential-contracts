@@ -334,28 +334,24 @@ def get_function_signature(function_abi):
     return f"{function_abi['name']}({input_types})"
 
 def test_validate_ciphertext(soda_helper, signing_key, user_key, contract_str, a):
-    contract = soda_helper.get_contract(contract_str)
     # Prepare the input text for the function
-    ct, signature = prepare_IT(a, user_key, Account.from_key(signing_key), contract, bytes.fromhex(signing_key[2:]))
-    return execute_transaction_with_gas_estimation("validate ciphertext", soda_helper, contract_str, "validateCiphertextTest", func_args=[ct, ct, ct, ct, ct, signature])
+    user_address, ct = prepare_IT(a, user_key, Account.from_key(signing_key).address)
+    return execute_transaction_with_gas_estimation("validate ciphertext", soda_helper, contract_str, "validateCiphertextTest", func_args=[ct, ct, ct, ct, ct, user_address])
 
 
 def test_validate_ciphertext_eip191(soda_helper, signing_key, user_key, contract_str, a):
-    contract = soda_helper.get_contract(contract_str)
     # Prepare the input text for the function
-    ct, signature = prepare_IT(a, user_key, Account.from_key(signing_key), contract, bytes.fromhex(signing_key[2:]), eip191=True)
-    return execute_transaction_with_gas_estimation("validate ciphertext eip191", soda_helper, contract_str, "validateCiphertextEip191Test", func_args=[ct, ct, ct, ct, ct, signature])
+    user_address, ct = prepare_IT(a, user_key, Account.from_key(signing_key).address)
+    return execute_transaction_with_gas_estimation("validate ciphertext eip191", soda_helper, contract_str, "validateCiphertextEip191Test", func_args=[ct, ct, ct, ct, ct, user_address])
 
 def test_validate_ciphertext_256(soda_helper, signing_key, user_key, contract_str, a):
-    contract = soda_helper.get_contract(contract_str)
     # Prepare the input text for the function
-    it = prepare_IT_256(a, user_key, Account.from_key(signing_key), contract, bytes.fromhex(signing_key[2:]))
+    it = prepare_IT_256(a, user_key, Account.from_key(signing_key).address)
     return execute_transaction_with_gas_estimation("validate ciphertext 256", soda_helper, contract_str, "validateCiphertext256Test", func_args=[it])
 
 def test_validate_ciphertext_256_eip191(soda_helper, signing_key, user_key, contract_str, a):
-    contract = soda_helper.get_contract(contract_str)
     # Prepare the input text for the function
-    it = prepare_IT_256(a, user_key, Account.from_key(signing_key), contract, bytes.fromhex(signing_key[2:]), eip191=True)
+    it = prepare_IT_256(a, user_key, Account.from_key(signing_key).address)
     return execute_transaction_with_gas_estimation("validate ciphertext 256 eip191", soda_helper, contract_str, "validateCiphertext256Eip191Test", func_args=[it])
 
 
@@ -980,7 +976,6 @@ def parse_url_parameter():
     parser.add_argument("--user_interactor_url", help="The url of the user interactor", default="0.0.0.0:50060")
 
     args = parser.parse_args()
-    print(f'Provider URL: {args.provider_url}')
     if args.check_results == "False":  
         check_results = False
     else:
@@ -1021,3 +1016,5 @@ if __name__ == "__main__":
         except Exception as e:
             logging.error("An error occurred: %s", e)
             raise e
+    else:
+        raise Exception("No URL provided")

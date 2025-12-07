@@ -21,32 +21,32 @@ struct ctUint256 {
 }
 
 struct itBool {
+    address userAddress;
     ctBool ciphertext;
-    bytes signature;
 }
 struct itUint8 {
+    address userAddress;
     ctUint8 ciphertext;
-    bytes signature;
 }
 struct itUint16 {
+    address userAddress;
     ctUint16 ciphertext;
-    bytes signature;
 }
 struct itUint32 {
+    address userAddress;
     ctUint32 ciphertext;
-    bytes signature;
 }
 struct itUint64 {
+    address userAddress;
     ctUint64 ciphertext;
-    bytes signature;
 }
 struct itUint128 {
+    address userAddress;
     ctUint128 ciphertext;
-    bytes signature;
 }
 struct itUint256 {
+    address userAddress;
     ctUint256 ciphertext;
-    bytes signature;
 }
 
 
@@ -78,6 +78,58 @@ library MpcCore {
 
     function requestDecryption(uint256 decryptID, uint256[] memory handles, bytes4 callbackSelector) internal {
         GCExtendedOperations(address(GCHandlerAddress)).RequestDecryption(decryptID, handles, callbackSelector);
+    }
+
+    function permitFullViewAccess(address permittee, uint64 expirationDate) internal {
+        GCACL(address(GCACLAddress)).permitFullViewAccess(permittee, expirationDate);
+    }
+
+    function permitContractViewAccess(address permittee, address contractAddress, uint64 expirationDate) internal {
+        GCACL(address(GCACLAddress)).permitContractViewAccess(permittee, contractAddress, expirationDate);
+    }
+
+    function revokeFullViewPermission(address permittee) internal {
+        GCACL(address(GCACLAddress)).revokeFullViewPermission(permittee);
+    }
+
+    function revokeContractViewPermission(address permittee, address contractAddress) internal {
+        GCACL(address(GCACLAddress)).revokeContractViewPermission(permittee, contractAddress);
+    }
+
+    function isFullViewPermitted(address permitter, address permittee) internal view returns (bool) {
+        return GCACL(address(GCACLAddress)).isFullViewPermitted(permitter, permittee);
+    }
+
+    function isContractViewPermitted(address permitter, address permittee, address contractAddress) internal view returns (bool) {
+        return GCACL(address(GCACLAddress)).isContractViewPermitted(permitter, permittee, contractAddress);
+    }
+
+    function isPermittedToView(address permitter, address permittee, uint256 handle) internal view returns (bool) {
+        return GCACL(address(GCACLAddress)).isPermittedToView(permitter, permittee, handle);
+    }
+
+    function permitFullInsertAccess(address permittee, uint64 expirationDate) internal{
+        GCACL(address(GCACLAddress)).permitFullInsertAccess(permittee, expirationDate);
+    }
+
+    function permitContractInsertAccess(address permittee, address contractAddress, uint64 expirationDate) internal{
+        GCACL(address(GCACLAddress)).permitContractInsertAccess(permittee, contractAddress, expirationDate);
+    }
+
+    function revokeFullInsertPermission(address permittee) internal{
+        GCACL(address(GCACLAddress)).revokeFullInsertPermission(permittee);
+    }
+
+    function revokeContractInsertPermission(address permittee, address contractAddress) internal{
+        GCACL(address(GCACLAddress)).revokeContractInsertPermission(permittee, contractAddress);
+    }
+
+    function isFullInsertPermitted(address permitter, address permittee) internal view returns (bool){
+        return GCACL(address(GCACLAddress)).isFullInsertPermitted(permitter, permittee);
+    }
+    
+    function isContractInsertPermitted(address permitter, address permittee, address contractAddress) internal view returns (bool){
+        return GCACL(address(GCACLAddress)).isContractInsertPermitted(permitter, permittee, contractAddress);
     }
 
     function permit(gtBool handle, address account) internal {
@@ -289,24 +341,12 @@ library MpcCore {
             OprfBurn(gtUint128.unwrap(key), gtUint128.unwrap(x), gtUint256.unwrap(q), y));
     }
 
-    function oprfSplit(gtUint128 key, gtUint128 x, gtUint256 q, uint128 y, gtUint256 qSplit) internal returns (gtUint128, gtUint256, gtUint128, gtUint128, gtUint256, gtUint128) {
-        (uint256 xrRemainder, uint256 qRemainder, uint256 yRemainder, uint256 xrPay, uint256 qPay, uint256 yPay) = GCExtendedOperations(address(GCHandlerAddress)).
-            OprfSplit(gtUint128.unwrap(key), gtUint128.unwrap(x), gtUint256.unwrap(q), y, gtUint256.unwrap(qSplit));
-        return (gtUint128.wrap(xrRemainder), gtUint256.wrap(qRemainder), gtUint128.wrap(yRemainder), gtUint128.wrap(xrPay), gtUint256.wrap(qPay), gtUint128.wrap(yPay));
-    }
-
-    function oprfMerge(gtUint128 key, gtUint128 xrRemainder, gtUint256 qRemainder, uint128 yRemainder, gtUint128 xrPay, gtUint256 qPay, uint128 yPay) internal returns (gtUint128, gtUint256, gtUint128) {
-        (uint256 xr, uint256 qMerged, uint256 yMerged) = GCExtendedOperations(address(GCHandlerAddress)).
-            OprfMerge(gtUint128.unwrap(key), gtUint128.unwrap(xrRemainder), gtUint256.unwrap(qRemainder), yRemainder, gtUint128.unwrap(xrPay), gtUint256.unwrap(qPay), yPay);
-        return (gtUint128.wrap(xr), gtUint256.wrap(qMerged), gtUint128.wrap(yMerged));
-    }
-
 
 // =========== 1 bit operations ==============
 
     function validateCiphertext(itBool memory input) internal returns (gtBool) {
         return gtBool.wrap(GCExtendedOperations(address(GCHandlerAddress)).
-            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SBOOL_T)), ctBool.unwrap(input.ciphertext), input.signature));
+            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SBOOL_T)), input.userAddress, ctBool.unwrap(input.ciphertext)));
     }
 
     function setPublic(bool pt) internal returns (gtBool) {
@@ -361,7 +401,7 @@ library MpcCore {
 
     function validateCiphertext(itUint8 memory input) internal returns (gtUint8) {
         return gtUint8.wrap(GCExtendedOperations(address(GCHandlerAddress)).
-            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SUINT8_T)), ctUint8.unwrap(input.ciphertext), input.signature));
+            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SUINT8_T)), input.userAddress, ctUint8.unwrap(input.ciphertext)));
     }
 
     function setPublic8(uint8 pt) internal returns (gtUint8) {
@@ -499,7 +539,7 @@ library MpcCore {
 
     function validateCiphertext(itUint16 memory input) internal returns (gtUint16) {
         return gtUint16.wrap(GCExtendedOperations(address(GCHandlerAddress)).
-            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SUINT16_T)), ctUint16.unwrap(input.ciphertext), input.signature));
+            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SUINT16_T)), input.userAddress, ctUint16.unwrap(input.ciphertext)));
     }
 
     function setPublic16(uint16 pt) internal returns (gtUint16) {
@@ -638,7 +678,7 @@ library MpcCore {
 
     function validateCiphertext(itUint32 memory input) internal returns (gtUint32) {
         return gtUint32.wrap(GCExtendedOperations(address(GCHandlerAddress)).
-            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SUINT32_T)), ctUint32.unwrap(input.ciphertext), input.signature));
+            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SUINT32_T)), input.userAddress, ctUint32.unwrap(input.ciphertext)));
     }
 
     function setPublic32(uint32 pt) internal returns (gtUint32) {
@@ -778,7 +818,7 @@ library MpcCore {
 
     function validateCiphertext(itUint64 memory input) internal returns (gtUint64) {
         return gtUint64.wrap(GCExtendedOperations(address(GCHandlerAddress)).
-            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SUINT64_T)), ctUint64.unwrap(input.ciphertext), input.signature));
+            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SUINT64_T)), input.userAddress, ctUint64.unwrap(input.ciphertext)));
     }
 
     function setPublic64(uint64 pt) internal returns (gtUint64) {
@@ -917,7 +957,7 @@ library MpcCore {
 
     function validateCiphertext(itUint128 memory input) internal returns (gtUint128) {
         return gtUint128.wrap(GCExtendedOperations(address(GCHandlerAddress)).
-            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SUINT128_T)), ctUint128.unwrap(input.ciphertext), input.signature));
+            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SUINT128_T)), input.userAddress, ctUint128.unwrap(input.ciphertext)));
     }
 
     function setPublic128(uint128 pt) internal returns (gtUint128) {
@@ -1054,7 +1094,7 @@ library MpcCore {
     // =========== 256 bit operations ==============
     function validateCiphertext(itUint256 memory input) internal returns (gtUint256) {
         return gtUint256.wrap(GCExtendedOperations(address(GCHandlerAddress)).
-            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SUINT256_T)), ctUint128.unwrap(input.ciphertext.ciphertextHigh), ctUint128.unwrap(input.ciphertext.ciphertextLow), input.signature));
+            ValidateCiphertext(bytes1(uint8(MPC_TYPE.SUINT256_T)), input.userAddress, ctUint128.unwrap(input.ciphertext.ciphertextHigh), ctUint128.unwrap(input.ciphertext.ciphertextLow)));
     }
 
     function setPublic256(uint256 pt) internal returns (gtUint256) {
