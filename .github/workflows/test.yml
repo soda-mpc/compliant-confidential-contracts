@@ -54,7 +54,7 @@ jobs:
 
       - name: Onboard user - python
         run: |
-          rm .env_user
+          # rm .env_user
           chmod +x lib/onchain/scripts/python/gen_account.py
           python -m lib.onchain.scripts.python.gen_account .env_user
           source .env_user
