@@ -84,7 +84,7 @@ def get_signers_addresses():
     chain_name = chain_name.upper()
     
     # Get address file path 
-    address_file_chain = f"contracts/{chain_name}/GCDecryptionVerifierAddress.sol"
+    address_file_chain = f"contracts/GCDecryptionVerifierAddress.sol"
     contract_address = None
     if os.path.exists(address_file_chain):
         contract_address = extract_address_from_sol_file(address_file_chain)
