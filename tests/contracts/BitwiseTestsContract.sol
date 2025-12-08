@@ -135,9 +135,7 @@ contract BitwiseTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkAndResults.selector);
     }
 
-    function checkAndResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkAndResults: Invalid callback parameters");
-        
+    function checkAndResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         uint8 firstResult = abi.decode(output[0], (uint8));
         for (uint256 i = 1; i < output.length; i++) {
             uint8 result = abi.decode(output[i], (uint8));
@@ -220,9 +218,7 @@ contract BitwiseTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkOrResults.selector);
     }
 
-    function checkOrResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkOrResults: Invalid callback parameters");
-        
+    function checkOrResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         uint8 firstResult = abi.decode(output[0], (uint8));
         for (uint256 i = 1; i < output.length; i++) {
             uint8 result = abi.decode(output[i], (uint8));

@@ -5,11 +5,15 @@ from eth_utils import to_bytes
 import logging
 from proto import userInteractor_pb2 as pb
 from proto import userInteractor_pb2_grpc as pb_grpc
-from soda_python_sdk import generate_rsa_keypair, decrypt_rsa, sign_eip191
+from soda_python_sdk import generate_rsa_keypair, decrypt_rsa, sign_eip191, verify_signatures
+from lib.onchain.scripts.python.get_signers import get_signers_addresses
 
 RSA_CIPHERTEXT_SIZE = 256  # 2048-bit RSA key size in bytes
+NUM_EVALUATORS = 2
 
 def onboard_user(client, signing_private_key):
+
+	signers = get_signers_addresses()
 
 	# Create RSA key pair
 	rsa_private_key, rsa_public_key = generate_rsa_keypair()
@@ -39,6 +43,13 @@ def onboard_user(client, signing_private_key):
 	
 	if len(response.rsa_ciphertexts) != 2 * RSA_CIPHERTEXT_SIZE:
 		raise ValueError(f"Invalid response size: {len(response.rsa_ciphertexts)}")
+
+	if len(response.mpc_signatures) != NUM_EVALUATORS:
+		raise ValueError(f"Invalid number of signatures: {len(response.mpc_signatures)}")
+
+    # Verify the signatures
+	if not verify_signatures(response.rsa_ciphertexts, response.mpc_signatures, signers): # returns true if the signatures are valid, false otherwise
+		raise ValueError(f"Signatures verification failed")
 	
 	# Split the response into two ciphers
 	cipher0 = response.rsa_ciphertexts[:RSA_CIPHERTEXT_SIZE]

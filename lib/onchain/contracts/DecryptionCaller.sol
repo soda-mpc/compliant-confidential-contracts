@@ -2,13 +2,22 @@
 pragma solidity ^0.8.19;
 
 import "MpcCore.sol";
+import "../../../contracts/GCDecryptionVerifierAddress.sol";
+
+interface GCDecryptionVerifier {
+    function verifyDecryptionSignatures(
+        uint256[] memory handlesList,
+        bytes[] memory decryptedResult,
+        bytes[] memory signatures
+    ) external returns (bool);
+}
 
 abstract contract DecryptionCaller {
 
     /// @notice Emitted when the decryption fails
     /// @param expected The expected size
     /// @param received The received size
-    event InvalidDecryptSize(uint256 expected, uint256 received);
+    error InvalidDecryptSize(uint256 expected, uint256 received);
 
     /// @notice Emitted when the decryption is successful
     /// @param decryptID The ID of the decryption
@@ -21,6 +30,10 @@ abstract contract DecryptionCaller {
     /// @notice Emitted when the decryption ID does not exist
     /// @param decryptID The ID of the decryption
     error DecryptionIDDoesNotExist(uint256 decryptID);
+
+    /// @notice Emitted when the signatures are invalid
+    /// @param decryptID The ID of the decryption
+    error InvalidSignatures(uint256 decryptID);
 
     /// @notice The counter of the decryption for this contract
     uint256 decryptCounter;
@@ -64,18 +77,29 @@ abstract contract DecryptionCaller {
         return decryptHandles[decryptID];
     }
 
-    /// @notice Check if the size of the output is the same as the size of the handles of the decryption corresponding to the decryptID
+    /// @notice Verify the signatures of the decryption
     /// @param decryptID The ID of the decryption
-    /// @param size The size of the output
-    /// @return True if the size of the output is the same as the size of the handles of the decryption corresponding to the decryptID, false otherwise
-    function checkCallbackHandles(uint256 decryptID, uint256 size) internal returns (bool){
-        uint256[] memory expectedHandles = getDecryptHandles(decryptID);
-        if (expectedHandles.length != size) {
-            emit InvalidDecryptSize(expectedHandles.length, size);
-            return false;
+    /// @param outputs The output of the decryption
+    /// @param signatures The signatures of the decryption
+    modifier verifyCallback(uint256 decryptID, bytes[] memory outputs, bytes[] memory signatures) {
+        uint256[] memory handles = getDecryptHandles(decryptID);
+        if (handles.length != outputs.length) {
+            revert InvalidDecryptSize(handles.length, outputs.length);
         }
+        if (!verifySignatures(handles, outputs, signatures)) {
+            revert InvalidSignatures(decryptID);
+        }
+        _;
         emit SuccessDecryption(decryptID);
-        return true;
+    }
+
+    /// @notice Verify the signatures of the decryption
+    /// @param handles The handles of the decryption
+    /// @param outputs The output of the decryption
+    /// @param signatures The signatures of the decryption
+    /// @return True if the signatures are valid, false otherwise
+    function verifySignatures(uint256[] memory handles, bytes[] memory outputs, bytes[] memory signatures) internal returns (bool) {
+        return GCDecryptionVerifier(address(GCDecryptionVerifierAddress)).verifyDecryptionSignatures(handles, outputs, signatures);
     }
 
 

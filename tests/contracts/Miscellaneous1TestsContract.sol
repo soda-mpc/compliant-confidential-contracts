@@ -301,9 +301,7 @@ contract Miscellaneous1TestsContract is DecryptionCaller {
         }
     }
 
-    function checkRandomResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkRandomResults: Invalid callback parameters");
-
+    function checkRandomResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         checkUint8 = new uint256[](MAX_SIZE_8_BITS);
         for (uint i = 0; i < MAX_SIZE_8_BITS; i++) {
             checkUint8[i] = abi.decode(output[i], (uint8));
@@ -349,9 +347,7 @@ contract Miscellaneous1TestsContract is DecryptionCaller {
         randomDecrypted = true;
     }
 
-    function checkRandomBoundedResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkRandomBoundedResults: Invalid callback parameters");
-
+    function checkRandomBoundedResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         checkUint8Bounded = new uint8[](MAX_SIZE_8_BITS);
         for (uint i = 0; i < MAX_SIZE_8_BITS; i++) {
             checkUint8Bounded[i] = abi.decode(output[i], (uint8));
@@ -415,9 +411,7 @@ contract Miscellaneous1TestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkBooleanResults.selector);
     }
 
-    function checkBooleanResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkBooleanResults: Invalid callback parameters");
-        
+    function checkBooleanResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         andRes = abi.decode(output[0], (bool));
         orRes = abi.decode(output[1], (bool));
         xorRes = abi.decode(output[2], (bool));
@@ -432,27 +426,27 @@ contract Miscellaneous1TestsContract is DecryptionCaller {
     // When invoking this test function, all ciphertexts share the same value but are 
     // cast to four different types: ctUint8, ctUint16, ctUint32, and ctUint64. 
     // Consequently, there is a single signature covering all these ciphertexts.
-    function validateCiphertextTest(ctUint8 ct8, ctUint16 ct16, ctUint32 ct32, ctUint64 ct64, ctUint128 ct128, bytes calldata signature) public returns (uint256){
+    function validateCiphertextTest(ctUint8 ct8, ctUint16 ct16, ctUint32 ct32, ctUint64 ct64, ctUint128 ct128, address userAddress) public returns (uint256){
         // Create ITs from ciphertext and signature
         itUint8 memory it8;
         it8.ciphertext = ct8;
-        it8.signature = signature;
+        it8.userAddress = userAddress;
 
         itUint16 memory it16;
         it16.ciphertext = ct16;
-        it16.signature = signature;
+        it16.userAddress = userAddress;
 
         itUint32 memory it32;
         it32.ciphertext = ct32;
-        it32.signature = signature;
+        it32.userAddress = userAddress;
 
         itUint64 memory it64;
         it64.ciphertext = ct64;
-        it64.signature = signature;
+        it64.userAddress = userAddress;
 
         itUint128 memory it128;
         it128.ciphertext = ct128;
-        it128.signature = signature;
+        it128.userAddress = userAddress;
 
         // Compute all operations and put the result handles in an array
         uint256[] memory arrToDecrypt = new uint256[](5);
@@ -466,9 +460,7 @@ contract Miscellaneous1TestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkValidateCiphertextResults.selector);
     }
 
-    function checkValidateCiphertextResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkValidateCiphertextResults: Invalid callback parameters");
-        
+    function checkValidateCiphertextResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         uint8 firstRes = abi.decode(output[0], (uint8));
         for (uint256 i = 1; i < output.length; i++) {
             uint8 res = abi.decode(output[i], (uint8));
@@ -482,27 +474,27 @@ contract Miscellaneous1TestsContract is DecryptionCaller {
     // When invoking this test function, all ciphertexts share the same value but are 
     // cast to four different types: ctUint8, ctUint16, ctUint32, and ctUint64. 
     // Consequently, there is a single signature covering all these ciphertexts.
-    function validateCiphertextEip191Test(ctUint8 ct8, ctUint16 ct16, ctUint32 ct32, ctUint64 ct64, ctUint128 ct128, bytes calldata signature) public returns (uint256){
+    function validateCiphertextEip191Test(ctUint8 ct8, ctUint16 ct16, ctUint32 ct32, ctUint64 ct64, ctUint128 ct128, address userAddress) public returns (uint256){
         // Create ITs from ciphertext and signature
         itUint8 memory it8;
         it8.ciphertext = ct8;
-        it8.signature = signature;
+        it8.userAddress = userAddress;
 
         itUint16 memory it16;
         it16.ciphertext = ct16;
-        it16.signature = signature;
+        it16.userAddress = userAddress;
 
         itUint32 memory it32;
         it32.ciphertext = ct32;
-        it32.signature = signature;
+        it32.userAddress = userAddress;
 
         itUint64 memory it64;
         it64.ciphertext = ct64;
-        it64.signature = signature;
+        it64.userAddress = userAddress;
 
         itUint128 memory it128;
         it128.ciphertext = ct128;
-        it128.signature = signature;
+        it128.userAddress = userAddress;
 
         // Compute all operations and put the result handles in an array
         uint256[] memory arrToDecrypt = new uint256[](5);
@@ -516,9 +508,7 @@ contract Miscellaneous1TestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkValidateCiphertextEip191Results.selector);
     }
 
-    function checkValidateCiphertextEip191Results(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkValidateCiphertextEip191Results: Invalid callback parameters");
-        
+    function checkValidateCiphertextEip191Results(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         uint8 firstRes = abi.decode(output[0], (uint8));
         for (uint256 i = 1; i < output.length; i++) {
             uint8 res = abi.decode(output[i], (uint8));
@@ -538,9 +528,7 @@ contract Miscellaneous1TestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkValidateCiphertext256Results.selector);
     }
 
-    function checkValidateCiphertext256Results(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkValidateCiphertext256Results: Invalid callback parameters");
-        
+    function checkValidateCiphertext256Results(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         validateCiphertext256Res = abi.decode(output[0], (uint256));
         validateCiphertext256Decrypted = true;
     }
@@ -553,9 +541,7 @@ contract Miscellaneous1TestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkValidateCiphertext256Eip191Results.selector);
     }
 
-    function checkValidateCiphertext256Eip191Results(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkValidateCiphertext256Eip191Results: Invalid callback parameters");
-        
+    function checkValidateCiphertext256Eip191Results(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         validateCiphertext256Eip191Res = abi.decode(output[0], (uint256));
         validateCiphertext256Eip191Decrypted = true;
     }

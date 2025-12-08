@@ -2,19 +2,17 @@
 pragma solidity ^0.8.24;
 
 import "MpcInterface.sol";
-import "../../lib/onchain/contracts/GCACLAddress.sol";
+import {GCACLAddress} from "GCACLAddress.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-
-struct CounterStorage {
-    uint256 counter; // tracks the number of decryption requests, and used to compute the requestID by hashing it with the dApp address
-}
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title    GCHandler
 /// @notice   This contract emits events for all GC operations.
 /// @dev      This contract is deployed using an UUPS proxy.
-contract GCHandler {
-
-    uint16[7] MPC_SIZES = [1, 8, 16, 32, 64, 128, 256];
+contract GCHandler is UUPSUpgradeable, Ownable2StepUpgradeable{
+    
+    uint256 constant MPC_SIZES_LENGTH = 7;
     enum METADATA_INDICES {ZERO, ONE, TWO, THREE, FOUR}
     enum InputTypes {BOTH_SECRET, LHS_PUBLIC, RHS_PUBLIC}
 
@@ -27,19 +25,35 @@ contract GCHandler {
     uint16 constant SUINT256_T = 256;
 
     string constant MESSAGE_PREFIX = "Ethereum Signed Message:\n";
-    CounterStorage internal decryptionOracleStorage;    
-    CounterStorage internal randStorage;
-    CounterStorage internal oprfStorage;
+
+    /// @custom:storage-location erc7201:bubble.storage.GCHandler
+    struct GCCounterStorage {
+        uint256 counter; // tracks the number of decryption requests, and used to compute the requestID by hashing it with the dApp address
+    }
+
+    /// The storage location of the GCCounterStorage struct used for decryption requests.
+    /// Calculated using the formula: keccak256(abi.encode(uint256(keccak256("bubble.storage.GCHandlerDecryptionStorageLocation")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant GCHandlerDecryptionStorageLocation = 0xd440951dcf626c3463253e61fb3d166b15c59bf4deaf2fe3001afee4b00bce00;
+
+    /// The storage location of the GCCounterStorage struct used for random number generation.
+    /// Calculated using the formula: keccak256(abi.encode(uint256(keccak256("bubble.storage.GCHandlerRandStorageLocation")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant GCHandlerRandStorageLocation = 0xdbeaee257380a3f0b8afb068c92c56a0ac9ad7bd42758fcf50b0034902ee3e00;
+
+    /// The storage location of the GCCounterStorage struct used for OPRF operations.
+    /// Calculated using the formula: keccak256(abi.encode(uint256(keccak256("bubble.storage.GCHandlerOprfStorageLocation")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant GCHandlerOprfStorageLocation = 0xd8f5e17ab37a053a554cebc4310f5ddd7d02997caa29c1f83b5caf58673d7800;
 
     GCACL constant acl = GCACL(address(GCACLAddress));
-
-    /// @notice         Returned if the signature is invalid.
-    error InvalidSignature();
 
     /// @notice         Returned if the caller is not permitted to access the handle.
     /// @param handle   Handle.
     /// @param sender   Sender address.
     error ACLNotPermitted(uint256 handle, address sender);
+
+    /// @notice         Returned if the caller is not permitted to insert the ciphertext on behalf of the user.
+    /// @param userAddress The address of the user who encrypted the ciphertext.
+    /// @param permitter The address of the sender who is permitted to insert the ciphertext on behalf of the user.
+    error ACLNotPermittedOnBehalf(address userAddress, address permitter);
 
     /// @notice         Returned if the public parameter is invalid.
     /// @param param    Parameter.
@@ -74,13 +88,21 @@ contract GCHandler {
     
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
+        _disableInitializers();
     }
 
-    function getSize(bytes1 size) internal view returns (uint16) {
+    function getSize(bytes1 size) internal pure returns (uint16) {
         // simple bounds check
         uint256 idx = uint8(size);
-        require(idx < MPC_SIZES.length, "Invalid size");
-        return MPC_SIZES[idx];
+        require(idx < MPC_SIZES_LENGTH, "Invalid size index");
+        if (idx == 0) return 1;
+        if (idx == 1) return 8;
+        if (idx == 2) return 16;
+        if (idx == 3) return 32;
+        if (idx == 4) return 64;
+        if (idx == 5) return 128;
+        if (idx == 6) return 256;
+        revert("Invalid size index");
     }
 
     function checkPublicParameter(uint256 param, uint16 bitSize) internal view returns (bool) {
@@ -99,6 +121,10 @@ contract GCHandler {
 
     function checkACL(uint256 handle) internal view returns (bool) {
         return acl.isPermitted(handle, msg.sender);
+    }
+
+    function checkACLOnBehalfPermission(address permitter, address permittee) internal view returns (bool) {
+        return acl.isFullInsertPermitted(permitter, permittee);
     }
 
     function validateBitSize(uint16 bitSize) internal view returns (bool) {
@@ -716,88 +742,64 @@ contract GCHandler {
             if (!checkACL(handles[i])) revert ACLNotPermitted(handles[i], msg.sender);
         }
 
-        emit GCDecryptionRequest(decryptionOracleStorage.counter, decryptID, handles, msg.sender, callbackSelector);
-        decryptionOracleStorage.counter++;
-    }
-
-    function verifySignature(bytes memory message, bytes calldata signature) internal {
-        bytes32 messageHash = keccak256(message);
-
-        uint8 v = uint8(signature[64]); 
-        if ( v < 27) {
-            v += 27; // Need to adjust v to be 27/28
-        }
-        
-        // Recover the address from the message hash
-        address recoveredAddress = ecrecover(messageHash, v, bytes32(signature[:32]), bytes32(signature[32:64]));
- 
-        // check if the recovered address is the same as the tx origin
-        if (recoveredAddress != tx.origin) {
-            // Failed to validate the signature, Try to recover with eip191
-            
-            // Update the message to include the eip 191 prefix, message length, and the message
-            bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(message);
-            
-            // Recover the address from the prefixed hash
-            recoveredAddress = ecrecover(ethSignedMessageHash, v, bytes32(signature[:32]), bytes32(signature[32:64]));
-
-            // check if the recovered address is the same as the tx origin
-            if (recoveredAddress != tx.origin) {
-                // Failed to validate the signature, revert
-                revert InvalidSignature();
-            }
-        }
+        GCCounterStorage storage $ = _getGCHandlerDecryptionStorage();
+        emit GCDecryptionRequest($.counter, decryptID, handles, msg.sender, callbackSelector);
+        $.counter++;
     }
 
     /// @notice              Computes ValidateCiphertext operation.
     /// @param metadata      Meta data.
+    /// @param userAddress   The address of the user who encrypted the ciphertext.
     /// @param ciphertext    Ciphertext to validate.
-    /// @param signature     Signature of the ciphertext.
     /// @return result       Result handle.
-    function ValidateCiphertext(bytes1 metadata, uint256 ciphertext, bytes calldata signature) public virtual returns (uint256 result){
-        // check if the signature is valid
-        if (signature.length != 65) {
-            revert InvalidSignature();
+    function ValidateCiphertext(bytes1 metadata, address userAddress, uint256 ciphertext) public virtual returns (uint256 result){
+    
+        // There are two options for message:
+        // 1. tx.origin == userAddress: The tx sent by the user (this is the default case)
+        // 2. tx.origin != userAddress: The tx sent by the SA contract (this is the case of account abstraction)
+        // In the second case, we need to check if the userAddress allows msg.sender to insert inputs
+        if (tx.origin != userAddress) {
+            if (!checkACLOnBehalfPermission(userAddress, msg.sender)) {
+                revert ACLNotPermittedOnBehalf(userAddress, msg.sender);
+            }
         }
 
-        // Create message of the signature: user address + contract address + ciphertext
-        bytes memory message = abi.encodePacked(tx.origin, msg.sender, ciphertext);
-        verifySignature(message, signature);
-
-        // Signer is valid, onboard the ct
+        // Sender is valid, onboard the ct
         uint16 bitSize = getSize(metadata[uint8(METADATA_INDICES.ZERO)]);
-        result = uint256(keccak256(abi.encodePacked("Onboard", ciphertext, tx.origin, metadata)));
+        result = uint256(keccak256(abi.encodePacked("Onboard", ciphertext, userAddress, metadata)));
         // Permit the calling contract to access the result handle
         acl.permitTransient(result, msg.sender);
 
-        emit GCOnboard(bitSize, ciphertext, tx.origin, result);
+        emit GCOnboard(bitSize, ciphertext, userAddress, result);
     }
 
     /// @notice                 Computes ValidateCiphertext256 operation.
     /// @param metadata         Meta data.
+    /// @param userAddress      The address of the user who encrypted the ciphertext.
     /// @param ciphertextHigh   Left half of the ciphertext.
     /// @param ciphertextLow    Right half of the ciphertext.
-    /// @param signature        Signature of the ciphertext.
     /// @return result          Result handle.
-    function ValidateCiphertext(bytes1 metadata, uint256 ciphertextHigh, uint256 ciphertextLow, bytes calldata signature) public virtual returns (uint256 result){
-        // check if the signature is valid
-        if (signature.length != 65) {
-            revert InvalidSignature();
+    function ValidateCiphertext(bytes1 metadata, address userAddress, uint256 ciphertextHigh, uint256 ciphertextLow) public virtual returns (uint256 result){
+        
+        // There are two options for message:
+        // 1. tx.origin == userAddress: The tx sent by the user (this is the default case)
+        // 2. tx.origin != userAddress: The tx sent by the SA contract (this is the case of account abstraction)
+        // In the second case, we need to check if the userAddress allows msg.sender to insert inputs
+        if (tx.origin != userAddress) {
+            if (!checkACLOnBehalfPermission(userAddress, msg.sender)) {
+                revert ACLNotPermittedOnBehalf(userAddress, msg.sender);
+            }
         }
 
-        // Create message of the signature: user address + contract address + ciphertextHigh + ciphertextLow
-        bytes memory message = abi.encodePacked(tx.origin, msg.sender, ciphertextHigh, ciphertextLow);
-        verifySignature(message, signature);
-
-        // Signer is valid, onboard the ct
+        // Sender is valid, onboard the ct
         uint16 bitSize = getSize(metadata[uint8(METADATA_INDICES.ZERO)]);
         if (bitSize != 256) revert InvalidBitSize(bitSize);
 
-        result = uint256(keccak256(abi.encodePacked("Onboard", ciphertextHigh, ciphertextLow, tx.origin, metadata)));
+        result = uint256(keccak256(abi.encodePacked("Onboard", ciphertextHigh, ciphertextLow, userAddress, metadata)));
         // Permit the calling contract to access the result handle
         acl.permitTransient(result, msg.sender);
 
-        emit GCOnboard256(bitSize, ciphertextHigh, ciphertextLow, tx.origin, result);
+        emit GCOnboard256(bitSize, ciphertextHigh, ciphertextLow, userAddress, result);
     }
 
     /// @notice              Computes Rand operation.
@@ -809,13 +811,14 @@ contract GCHandler {
         if (!validateBitSize(bitSize)) revert InvalidParameter(bitSize);
 
         // The randStorage.counter is used to avoid collisions in the result handles
+        GCCounterStorage storage $ = _getGCHandlerRandStorage();
         // when there are multiple calls to the Rand function.
-        result = uint256(keccak256(abi.encodePacked("Rand", randStorage.counter, metadata)));
+        result = uint256(keccak256(abi.encodePacked("Rand", $.counter, metadata)));
         // Permit the calling contract to access the result handle
         acl.permitTransient(result, msg.sender);
 
         emit GCRand(bitSize, result);
-        randStorage.counter++;
+        $.counter++;
     }
 
     /// @notice              Computes RandBoundedBits operation.
@@ -828,15 +831,15 @@ contract GCHandler {
         if (!validateBitSize(bitSize)) revert InvalidParameter(bitSize);
         if (numBits > bitSize) revert InvalidParameter(numBits);
 
-
         // The randStorage.counter is used to avoid collisions in the result handles
+        GCCounterStorage storage $ = _getGCHandlerRandStorage();
         // when there are multiple calls to the Rand function.
-        result = uint256(keccak256(abi.encodePacked("RandBoundedBits", randStorage.counter, numBits, metadata)));
+        result = uint256(keccak256(abi.encodePacked("RandBoundedBits", $.counter, numBits, metadata)));
         // Permit the calling contract to access the result handle
         acl.permitTransient(result, msg.sender);
 
         emit GCUnaryOperation("RAND", bitSize, numBits, result);
-        randStorage.counter++;
+        $.counter++;
     }
 
     /// @notice              Computes OprfMint operation.
@@ -851,15 +854,16 @@ contract GCHandler {
     /// @return y            Y value of the token.
     function OprfMint(uint256 key, uint256 q) public virtual returns (uint256 x, uint256 y){
         
-        x = uint256(keccak256(abi.encodePacked("OprfMintX", oprfStorage.counter, key, q)));
-        y = uint256(keccak256(abi.encodePacked("OprfMintY", oprfStorage.counter, key, q)));
+        GCCounterStorage storage $ = _getGCHandlerOprfStorage();
+        x = uint256(keccak256(abi.encodePacked("OprfMintX", $.counter, key, q)));
+        y = uint256(keccak256(abi.encodePacked("OprfMintY", $.counter, key, q)));
         // Permit the calling contract to access the result handle
         acl.permitTransient(x, msg.sender);
         acl.permitTransient(y, msg.sender);
 
         emit GCOprfMint(key, q, x, y);
 
-        oprfStorage.counter++;
+        $.counter++;
     }
 
     /// @notice              Computes OprfBurn operation.
@@ -870,72 +874,46 @@ contract GCHandler {
     /// @param y             Y value of the token.
     /// @return qBurned      Result handle of Q value of the burned token.
     function OprfBurn(uint256 key, uint256 x, uint256 q, uint256 y) public virtual returns (uint256 qBurned){
-        qBurned = uint256(keccak256(abi.encodePacked("OprfBurnQBurned", oprfStorage.counter, key, x, q, y)));
+        GCCounterStorage storage $ = _getGCHandlerOprfStorage();
+        qBurned = uint256(keccak256(abi.encodePacked("OprfBurnQBurned", $.counter, key, x, q, y)));
         
         acl.permitTransient(qBurned, msg.sender);
         
         emit GCOprfBurn(key, x, q, y, qBurned);
         
-        oprfStorage.counter++;
+        $.counter++;
     }
 
-    /// @notice              Computes OprfSplit operation.
-    /// The OPRFSplit function is used to split an anonymous token into two new tokens..
-    /// @param key           Key for the OPRF function.
-    /// @param x             X of the original token.
-    /// @param q             Quantity of the original token.
-    /// @param y             Y of the original token.
-    /// @param qSplit        Requested quantity for the new token.
-    /// @return xrRemainder  Result handle of X value of the remainder token.
-    /// @return qRemainder   Result handle of Q value of the remainder token. Qremainder should be q - qSplit is all validations are successful, otherwise it should be equal to q.
-    /// @return yRemainder   Result handle of Y value of the remainder token.
-    /// @return xrPay        Result handle of X value of the pay token.
-    /// @return qPay         Result handle of Q value of the pay token. Qpay should be qSplit if all validations are successful, otherwise it should be equal to 0.
-    /// @return yPay         Result handle of Y value of the pay token.
-    function OprfSplit(uint256 key, uint256 x, uint256 q, uint256 y, uint256 qSplit) public virtual returns (uint256 xrRemainder, uint256 qRemainder, uint256 yRemainder, uint256 xrPay, uint256 qPay, uint256 yPay){
-        xrRemainder = uint256(keccak256(abi.encodePacked("OprfSplitXrRemainder", oprfStorage.counter, key, x, q, y, qSplit)));
-        qRemainder = uint256(keccak256(abi.encodePacked("OprfSplitQRemainder", oprfStorage.counter, key, x, q, y, qSplit)));
-        yRemainder = uint256(keccak256(abi.encodePacked("OprfSplitYRemainder", oprfStorage.counter, key, x, q, y, qSplit)));
-        xrPay = uint256(keccak256(abi.encodePacked("OprfSplitXrPay", oprfStorage.counter, key, x, q, y, qSplit)));
-        qPay = uint256(keccak256(abi.encodePacked("OprfSplitQPay", oprfStorage.counter, key, x, q, y, qSplit)));
-        yPay = uint256(keccak256(abi.encodePacked("OprfSplitYPay", oprfStorage.counter, key, x, q, y, qSplit)));
-
-        acl.permitTransient(xrRemainder, msg.sender);
-        acl.permitTransient(qRemainder, msg.sender);
-        acl.permitTransient(yRemainder, msg.sender);
-        acl.permitTransient(xrPay, msg.sender);
-        acl.permitTransient(qPay, msg.sender);
-        acl.permitTransient(yPay, msg.sender);
-
-        emit GCOprfSplit(key, x, q, y, qSplit, xrRemainder, qRemainder, yRemainder, xrPay, qPay, yPay);
-
-        oprfStorage.counter++;
+    /**
+     * @dev Returns the GCHandlerDecryptionStorage storage location.
+     */
+    function _getGCHandlerDecryptionStorage() internal pure returns (GCCounterStorage storage $) {
+        assembly {
+            $.slot := GCHandlerDecryptionStorageLocation
+        }
     }
 
-    /// @notice              Computes OprfMerge operation.
-    /// The OPRFMerge function is used to merge two anonymous tokens into one new token.
-    /// @param key           Key for the OPRF function.
-    /// @param x1            X value of the first token.
-    /// @param q1            Quantity value of the first token.
-    /// @param y1            Y value of the first token.
-    /// @param x2            X value of the second token.
-    /// @param q2            Quantity value of the second token.
-    /// @param y2            Y value of the second token.
-    /// @return xr           Result handle of X value of the merged token.
-    /// @return qMerged      Result handle of Q value of the merged token. Qmerged should be qRemainder + qPay if all validations are successful.
-    /// @return yMerged      Result handle of Y value of the merged token.
-    function OprfMerge(uint256 key, uint256 x1, uint256 q1, uint256 y1, uint256 x2, uint256 q2, uint256 y2) public virtual returns (uint256 xr, uint256 qMerged, uint256 yMerged){
-        xr = uint256(keccak256(abi.encodePacked("OprfMergeXr", oprfStorage.counter, key, x1, q1, y1, x2, q2, y2)));
-        qMerged = uint256(keccak256(abi.encodePacked("OprfMergeQMerged", oprfStorage.counter, key, x1, q1, y1, x2, q2, y2)));
-        yMerged = uint256(keccak256(abi.encodePacked("OprfMergeYMerged", oprfStorage.counter, key, x1, q1, y1, x2, q2, y2)));
-
-        acl.permitTransient(xr, msg.sender);
-        acl.permitTransient(qMerged, msg.sender);
-        acl.permitTransient(yMerged, msg.sender);
-
-        emit GCOprfMerge(key, x1, q1, y1, x2, q2, y2, xr, qMerged, yMerged);
-
-        oprfStorage.counter++;
+    /**
+     * @dev Returns the GCHandlerRandStorage storage location.
+     */
+    function _getGCHandlerRandStorage() internal pure returns (GCCounterStorage storage $) {
+        assembly {
+            $.slot := GCHandlerRandStorageLocation
+        }
     }
+
+    /**
+     * @dev Returns the GCHandlerOprfStorage storage location.
+     */
+    function _getGCHandlerOprfStorage() internal pure returns (GCCounterStorage storage $) {
+        assembly {
+            $.slot := GCHandlerOprfStorageLocation
+        }
+    }
+
+    /**
+     * @dev Should revert when `msg.sender` is not authorized to upgrade the contract.
+     */
+    function _authorizeUpgrade(address _newImplementation) internal virtual override onlyOwner {}
         
 }

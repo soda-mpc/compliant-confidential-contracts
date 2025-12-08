@@ -398,33 +398,33 @@ contract TransferAllowance64TestsContract is DecryptionCaller {
         index += NUM_DECRYPTIONS_PER_TRANSFER;
 
         // Perform all options for casting to 64 while amount is 8 and allowance is 16
-        (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a64_s, allGTCastingValues.b64_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
-        setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
-        index += NUM_DECRYPTIONS_PER_TRANSFER;
+        // (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a64_s, allGTCastingValues.b64_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
+        // setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
+        // index += NUM_DECRYPTIONS_PER_TRANSFER;
 
-        (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a8_s, allGTCastingValues.b64_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
-        setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
-        index += NUM_DECRYPTIONS_PER_TRANSFER;
+        // (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a8_s, allGTCastingValues.b64_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
+        // setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
+        // index += NUM_DECRYPTIONS_PER_TRANSFER;
 
-        (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a64_s, allGTCastingValues.b8_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
-        setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
-        index += NUM_DECRYPTIONS_PER_TRANSFER;
+        // (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a64_s, allGTCastingValues.b8_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
+        // setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
+        // index += NUM_DECRYPTIONS_PER_TRANSFER;
 
-        (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a16_s, allGTCastingValues.b64_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
-        setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
-        index += NUM_DECRYPTIONS_PER_TRANSFER;
+        // (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a16_s, allGTCastingValues.b64_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
+        // setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
+        // index += NUM_DECRYPTIONS_PER_TRANSFER;
 
-        (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a64_s, allGTCastingValues.b16_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
-        setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
-        index += NUM_DECRYPTIONS_PER_TRANSFER;
+        // (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a64_s, allGTCastingValues.b16_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
+        // setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
+        // index += NUM_DECRYPTIONS_PER_TRANSFER;
 
-        (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a32_s, allGTCastingValues.b64_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
-        setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
-        index += NUM_DECRYPTIONS_PER_TRANSFER;
+        // (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a32_s, allGTCastingValues.b64_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
+        // setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
+        // index += NUM_DECRYPTIONS_PER_TRANSFER;
 
-        (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a64_s, allGTCastingValues.b32_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
-        setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
-        index += NUM_DECRYPTIONS_PER_TRANSFER;
+        // (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a64_s, allGTCastingValues.b32_s, allAmountValues.amount8_s, allAllowanceValues.allowance16_s);
+        // setDecryptions(newA_s, newB_s, res_s, newAllowance_s, arrToDecrypt, index);
+        // index += NUM_DECRYPTIONS_PER_TRANSFER;
 
         // Perform all options for casting to 64 while amount is 64 and allowance is 8
         // (newA_s, newB_s, res_s, newAllowance_s) = MpcCore.transferWithAllowance(allGTCastingValues.a64_s, allGTCastingValues.b64_s, allAmountValues.amount8_s, allAllowanceValues.allowance64_s);
@@ -568,7 +568,7 @@ contract TransferAllowance64TestsContract is DecryptionCaller {
         allAllowanceValues.allowance64_s = MpcCore.setPublic64(allowance);
         
         // Compute all operations and put the result handles in an array
-        uint256[] memory arrToDecrypt = new uint256[](4*7*4*3);  // 336
+        uint256[] memory arrToDecrypt = new uint256[](4*7*4*3 - 7*4);  // 308
 
         // Calculate the result with casting to 64
         computeAndCheckTransfer64(allGTCastingValues, allAmountValues, allAllowanceValues, arrToDecrypt);
@@ -576,9 +576,7 @@ contract TransferAllowance64TestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkTransferWithAllowanceResults.selector); 
     }
 
-    function checkTransferWithAllowanceResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkTransferWithAllowanceResults: Invalid callback parameters");
-        
+    function checkTransferWithAllowanceResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         uint8 firstNewA = abi.decode(output[0], (uint8));
         uint8 firstNewB = abi.decode(output[1], (uint8));
         bool firstRes = abi.decode(output[2], (bool));

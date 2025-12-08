@@ -143,9 +143,7 @@ contract MiscellaneousTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkMuxResults.selector);
     }
 
-    function checkMuxResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkMuxResults: Invalid callback parameters");
-        
+    function checkMuxResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         uint8 firstResult = abi.decode(output[0], (uint8));
         for (uint256 i = 1; i < output.length; i++) {
             uint8 result = abi.decode(output[i], (uint8));
@@ -166,9 +164,7 @@ contract MiscellaneousTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkNotResults.selector);
     }
 
-    function checkNotResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkNotResults: Invalid callback parameters");
-
+    function checkNotResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         boolResult = abi.decode(output[0], (bool));
         notDecrypted = true;
     }

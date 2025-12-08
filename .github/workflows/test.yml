@@ -16,7 +16,7 @@ jobs:
       REMOTE_CHAIN_ID: ${{ vars.REMOTE_ETHEREUM_CHAIN_ID}}
       REMOTE_FAUCET_ADDRESS: ${{ secrets.REMOTE_FAUCET_ADDRESS}}
       USER_INTERACTOR_URL: ${{ vars.USER_INTERACTOR_URL}}:50060
-      PUBLIC_KEYS_PATH: "keys/"
+      CHAIN_NAME: ${{ vars.CHAIN_NAME}}
 
     steps:
       - name: Checkout code

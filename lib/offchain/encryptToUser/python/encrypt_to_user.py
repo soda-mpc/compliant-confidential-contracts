@@ -4,46 +4,122 @@ import grpc
 import logging
 
 from web3 import Account
+from eth_utils import to_bytes
 from proto import userInteractor_pb2 as pb
 from proto import userInteractor_pb2_grpc as pb_grpc
-from soda_python_sdk import sign, BLOCK_SIZE, verify_signature, decrypt, read_public_key_from_pem
+from soda_python_sdk import sign, BLOCK_SIZE, verify_signatures, decrypt
+from lib.onchain.scripts.python.get_signers import get_signers_addresses
 
 NUM_EVALUATORS = 2
 
-def get_encrypted_value(client, handle, account, chain_id, public_keys):
+def get_encrypted_values(client, handles_to_encrypt, account, chain_id, signers):
     
-    handle_bytes = handle.to_bytes(32, byteorder='big')
-    # Sign the handle
-    signature = sign(handle_bytes, account.key)
+    # Concatenate the handles to encrypt into a single bytes array
+    handles_bytes, handles_bytes_to_sign = concat_handles(handles_to_encrypt)
+
+    # Sign the handles
+    signature = sign(handles_bytes_to_sign, account.key)
 
     # Call the gRPC service to get the encrypted balance of this handle
     request = pb.EncryptToUserRequest(
-		handle=handle_bytes,
+		handles=handles_bytes,
         chain_id=int(chain_id),
         user_signature=signature
 	)
+
+    return call_encrypt_to_user(client, request, handles_bytes, handles_to_encrypt, signers)
+
+def get_encrypted_values_on_behalf(client, handles_to_encrypt, owner, account, chain_id, signers):
+    
+    # Concatenate the handles to encrypt into a single bytes array
+    handles_bytes, handles_bytes_to_sign = concat_handles(handles_to_encrypt)
+
+    # Handle Account objects
+    if hasattr(owner, 'address'):
+        owner_bytes = to_bytes(hexstr=owner.address)
+    elif isinstance(owner, str):
+        owner_bytes = to_bytes(hexstr=owner)
+    elif isinstance(owner, bytes):
+        owner_bytes = owner
+    else:
+        raise TypeError(f"Owner must be an Account object with 'address' attribute, or a string/bytes. Got: {type(owner)}")
+
+    message_to_verify = handles_bytes_to_sign + owner_bytes
+
+    # Sign the handles
+    signature = sign(message_to_verify, account.key)
+
+    # Call the gRPC service to get the encrypted balance of this handle
+    request = pb.EncryptToUserRequest(
+		handles=handles_bytes,
+        chain_id=int(chain_id),
+        owner=owner_bytes,
+        user_signature=signature
+	)
+
+    return call_encrypt_to_user(client, request, handles_bytes, handles_to_encrypt, signers)
+
+def call_encrypt_to_user(client, request, handles_bytes, handles_to_encrypt, signers):
     response = client.EncryptToUser(request)
     
-    logging.info(f"EncryptToUser returned {len(response.output)} bytes")
+    logging.info(f"EncryptToUser returned {len(response.outputs)} bytes")
+
+    if not response.outputs or not response.mpc_signatures:
+        raise ValueError("Invalid response: outputs and mpc_signatures are required")
     
-    if len(response.output) != BLOCK_SIZE*4:
-        raise ValueError(f"Invalid response size: {len(response.output)}")
+    if len(response.outputs) != len(handles_to_encrypt):
+        raise ValueError(f"Invalid response size: {len(response.output)}, should be {len(handles_to_encrypt)}")
+
+    for i in range(len(handles_to_encrypt)):
+        if len(response.outputs[i]) != BLOCK_SIZE*4:
+            raise ValueError(f"Invalid response size: {len(response.outputs[i])}, should be {BLOCK_SIZE*4}")
 
     if len(response.mpc_signatures) != NUM_EVALUATORS:
         raise ValueError(f"Invalid number of signatures: {len(response.mpc_signatures)}")
 
-    if not validate_signatures(response.mpc_signatures, handle_bytes, response.output, public_keys):
+    if not validate_signatures(response.mpc_signatures, handles_bytes, response.outputs, signers):
         raise ValueError(f"Invalid signatures: {response.mpc_signatures}")
 
-    return response.output 
+    return response.outputs 
 
-def validate_signatures(signatures, handle_bytes, output, public_keys): 
-    evaluator_index = 0
-    for signature in signatures:
-        if not verify_signature(public_keys[evaluator_index], handle_bytes, output, signature):
-            print(f"Verification failed for evaluator {evaluator_index}")
-            return False
-        evaluator_index += 1
+def concat_handles(handles_to_encrypt):
+    handles_bytes = []
+    handles_bytes_to_sign = bytes()
+    for handle in handles_to_encrypt:
+        if (isinstance(handle, int)):
+            handle_bytes = handle.to_bytes(32, byteorder='big')
+        else:
+            handle_bytes = handle
+        handles_bytes.append(handle_bytes)
+        handles_bytes_to_sign += handle_bytes
+
+    return handles_bytes, handles_bytes_to_sign
+
+def validate_signatures(signatures, handles_bytes, outputs_bytes, signers):
+    # Validate that the number of handles and outputs is the same and not empty
+    if (len(handles_bytes) != len(outputs_bytes)):
+        raise ValueError("handles and outputs must have the same length")
+
+    if len(handles_bytes) == 0:  
+        raise ValueError("handles and outputs must be non-empty") 
+
+    # Concatenate all handles and outputs into a single buffer for verification
+    all_handles = bytes()
+    for handle in handles_bytes:
+        all_handles += handle
+
+    all_outputs = bytes()
+    for output in outputs_bytes:
+        all_outputs += output
+
+    # Create the message to verify
+    message = all_handles + all_outputs
+
+    # Verify the signatures
+    if not verify_signatures(message, signatures, signers): # returns true if the signatures are valid, false otherwise
+        print(f"Signatures verification failed")
+        return False
+
     return True
 
 def decrypt_value(ct_value, user_key):
@@ -102,15 +178,12 @@ def main(handle, to_decrypt):
     channel = grpc.insecure_channel(user_interactor_url)
     client = pb_grpc.UserInteractorServiceStub(channel)
     
-
-    public_keys_path = os.environ.get('PUBLIC_KEYS_PATH')
-    public_keys = []
-    public_keys.append(read_public_key_from_pem(public_keys_path + "evaluator0PublicKey.pem"))
-    public_keys.append(read_public_key_from_pem(public_keys_path + "evaluator1PublicKey.pem"))
+    signers = get_signers_addresses()
 
     print("Encrypting value to user")
     # Create a grpc call for onboarding a user
-    encrypted_value = get_encrypted_value(client, int(handle), account, chain_id, public_keys)
+    encrypted_values = get_encrypted_values(client, [int(handle)], account, chain_id, signers)
+    encrypted_value = encrypted_values[0]
 
     channel.close()
 

@@ -19,27 +19,29 @@ message OnboardUserRequest {
 
 message OnboardUserResponse{
     bytes rsa_ciphertexts = 1;
-    int32 result_code = 2;
+    repeated bytes mpc_signatures = 2;
+    int32 result_code = 3;
 }
 
 message EncryptToUserRequest{
-    bytes handle = 1;
+    repeated bytes handles = 1;
     int64 chain_id = 2;
-    bytes user_signature = 3;
+    optional bytes owner = 3;
+    bytes user_signature = 4;
 }
 
 message EncryptToUserResponse{
-    bytes output = 1;
+    repeated bytes outputs = 1;
     repeated bytes mpc_signatures = 2;
     int32 result_code = 3;
 }
 
 message IsNullifiedRequest{
-    bytes y_value = 1;
+    repeated bytes y_values = 1;
 }
 
 message IsNullifiedResponse {
-    bool response = 1;
+    repeated bool responses = 1;
     bytes mpc_signature = 2;
     int32 result_code = 3;
 }

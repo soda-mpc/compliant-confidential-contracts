@@ -125,9 +125,7 @@ contract Bitwise2TestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkXorResults.selector);
     }
 
-    function checkXorResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkXorResults: Invalid callback parameters");
-        
+    function checkXorResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         uint8 firstResult = abi.decode(output[0], (uint8));
         for (uint256 i = 1; i < output.length; i++) {
             uint8 result = abi.decode(output[i], (uint8));

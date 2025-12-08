@@ -131,9 +131,7 @@ contract MinMaxTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkMinResults.selector);
     }
 
-    function checkMinResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkMinResults: Invalid callback parameters");
-        
+    function checkMinResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         uint8 firstResult = abi.decode(output[0], (uint8));
         for (uint256 i = 1; i < output.length; i++) {
             uint8 result = abi.decode(output[i], (uint8));
@@ -216,9 +214,7 @@ contract MinMaxTestsContract is DecryptionCaller {
         return requestDecryption(arrToDecrypt, this.checkMaxResults.selector);
     }
 
-    function checkMaxResults(uint256 decryptID, bytes[] calldata output, bytes calldata signature) public {
-        require(checkCallbackHandles(decryptID, output.length), "checkMaxResults: Invalid callback parameters");
-        
+    function checkMaxResults(uint256 decryptID, bytes[] calldata output, bytes[] calldata signatures) public verifyCallback(decryptID, output, signatures){
         uint8 firstResult = abi.decode(output[0], (uint8));
         for (uint256 i = 1; i < output.length; i++) {
             uint8 result = abi.decode(output[i], (uint8));
