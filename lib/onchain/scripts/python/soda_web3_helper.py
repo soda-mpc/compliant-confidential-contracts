@@ -49,7 +49,12 @@ class SodaWeb3Helper:
         self.web3.eth.default_account = self.account.address
         self.web3.middleware_onion.inject(geth_poa_middleware, layer=0) 
         if not self.web3.is_connected():
-            raise Exception("Failed to connect to the node.")
+            raise ConnectionError(
+                f"Could not reach the Bubble RPC endpoint at {http_provider_url}.\n"
+                "Nothing was wrong with the request: the node did not answer at all.\n"
+                "Check that the host is up and accepting connections on that port "
+                "before looking for a bug in the contracts or the test."
+            )
         print(f'Connected to the node at {http_provider_url}')
 
         self.chain_id = chain_id
